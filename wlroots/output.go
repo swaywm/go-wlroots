@@ -79,7 +79,19 @@ func (o Output) SwapBuffers() {
 }
 
 func (o Output) Modes() []OutputMode {
-	return nil
+	// TODO: figure out what to do with this ridiculous for loop
+	// perhaps this can be refactored into a less ugly hack that uses reflection
+	var modes []OutputMode
+	var mode *C.struct_wlr_output_mode
+	for mode := (*C.struct_wlr_output_mode)(unsafe.Pointer(uintptr(unsafe.Pointer(o.p.modes.next)) - unsafe.Offsetof(mode.link))); &mode.link != &o.p.modes; mode = (*C.struct_wlr_output_mode)(unsafe.Pointer(uintptr(unsafe.Pointer(mode.link.next)) - unsafe.Offsetof(mode.link))) {
+		modes = append(modes, OutputMode{p: mode})
+	}
+
+	return modes
+}
+
+func (o Output) SetMode(mode OutputMode) {
+	C.wlr_output_set_mode(o.p, mode.p)
 }
 
 type OutputLayout struct {

@@ -119,9 +119,10 @@ func (s *Server) handleDestroyOutput(output wlroots.Output) {
 }
 
 func (s *Server) handleNewOutput(output wlroots.Output) {
+	// TODO: pick the preferred mode instead of the first one
 	modes := output.Modes()
 	if len(modes) > 0 {
-		panic("unsupported backend")
+		output.SetMode(modes[len(modes)-1])
 	}
 
 	output.OnFrame(s.handleNewFrame)

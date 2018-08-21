@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	log          = logger.New(os.Stdout, "", logger.Ldate|logger.Lmicroseconds)
+	log          = logger.New(os.Stderr, "", logger.Ldate|logger.Lmicroseconds)
 	logVerbosity = wlroots.LogImportanceInfo
 
 	logColors = map[wlroots.LogImportance]string{
@@ -22,7 +22,7 @@ var (
 )
 
 func handleLog(importance wlroots.LogImportance, msg string) {
-	isTerm := isatty.IsTerminal(os.Stdout.Fd())
+	isTerm := isatty.IsTerminal(os.Stderr.Fd())
 	if importance > logVerbosity {
 		return
 	}
