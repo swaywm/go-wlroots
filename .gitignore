@@ -1,0 +1,3 @@
+build/
+wlroots/xdg-shell-protocol.c
+wlroots/xdg-shell-protocol.h
