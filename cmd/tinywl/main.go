@@ -1,12 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"os"
 	"os/exec"
 )
 
+var (
+	command = flag.String("s", "", "startup command")
+)
+
 func main() {
+	flag.Parse()
+
 	// start the server
 	server, err := NewServer()
 	if err != nil {
@@ -16,18 +22,15 @@ func main() {
 		panic(err)
 	}
 
-	// run the requested command
-	cmd := exec.Command("thunar")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err = cmd.Start(); err != nil {
-		panic(err)
-	}
-	go func() {
-		if err := cmd.Wait(); err != nil {
-			fmt.Printf("exec error: %s\n", err)
+	// run the startup command if given
+	if *command != "" {
+		cmd := exec.Command("/bin/sh", "-c", *command)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err = cmd.Start(); err != nil {
+			panic(err)
 		}
-	}()
+	}
 
 	// start the wayland event loop
 	if err = server.Run(); err != nil {
