@@ -314,9 +314,8 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 		keyboard.SetRepeatInfo(25, 600)
 
 		keyboard.OnKey(func(keyboard wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
-			// translate lininput keycode to xkbcommon
-			keyCode = keyCode + 8
-			syms := keyboard.XKBState().Syms(keyCode)
+			// translate lininput keycode to xkbcommon and obtain keysyms
+			syms := keyboard.XKBState().Syms(keyCode + 8)
 
 			var handled bool
 			modifiers := keyboard.Modifiers()
