@@ -11,7 +11,7 @@ import (
 
 var (
 	log          = logger.New(os.Stderr, "", logger.Ldate|logger.Lmicroseconds)
-	logVerbosity = wlroots.LogImportanceInfo
+	logVerbosity = wlroots.LogImportanceDebug
 
 	logColors = map[wlroots.LogImportance]string{
 		wlroots.LogImportanceSilent: "",

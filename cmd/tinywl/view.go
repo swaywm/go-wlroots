@@ -7,25 +7,21 @@ import (
 type View struct {
 	surface wlroots.XDGSurface
 	mapped  bool
+	X       float64
+	Y       float64
 }
 
 func NewView(surface wlroots.XDGSurface) *View {
 	view := &View{surface: surface}
-	surface.OnMap(view.onMap)
-	surface.OnUnmap(view.onUnmap)
 	return view
-}
-
-func (v *View) onMap(surface wlroots.XDGSurface) {
-	v.mapped = true
-}
-
-func (v *View) onUnmap(surface wlroots.XDGSurface) {
-	v.mapped = false
 }
 
 func (v *View) Mapped() bool {
 	return v.mapped
+}
+
+func (v *View) SetMapped(mapped bool) {
+	v.mapped = mapped
 }
 
 func (v *View) Surface() wlroots.Surface {

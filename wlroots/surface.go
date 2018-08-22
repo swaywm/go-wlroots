@@ -2,6 +2,7 @@ package wlroots
 
 // #include <time.h>
 // #include <wlr/types/wlr_surface.h>
+// #include <wlr/types/wlr_xdg_shell.h>
 import "C"
 import "time"
 
@@ -11,6 +12,10 @@ type Surface struct {
 
 type SurfaceState struct {
 	s C.struct_wlr_surface_state
+}
+
+func (s Surface) Nil() bool {
+	return s.p == nil
 }
 
 func (s Surface) Texture() Texture {
@@ -29,6 +34,11 @@ func (s Surface) Walk(visit func()) {
 func (s Surface) SendFrameDone(when time.Time) {
 	t := C.struct_timespec{}
 	C.wlr_surface_send_frame_done(s.p, &t)
+}
+
+func (s Surface) XDGSurface() XDGSurface {
+	p := C.wlr_xdg_surface_from_wlr_surface(s.p)
+	return XDGSurface{p: p}
 }
 
 func (s SurfaceState) Width() int {

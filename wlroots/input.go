@@ -7,12 +7,30 @@ import (
 	"unsafe"
 )
 
+type (
+	InputDeviceType uint32
+	ButtonState     uint32
+	AxisSource      uint32
+	AxisOrientation uint32
+)
+
 const (
-	InputDeviceKeyboard   = C.WLR_INPUT_DEVICE_KEYBOARD
-	InputDevicePointer    = C.WLR_INPUT_DEVICE_POINTER
-	InputDeviceTouch      = C.WLR_INPUT_DEVICE_TOUCH
-	InputDeviceTabletTool = C.WLR_INPUT_DEVICE_TABLET_TOOL
-	InputDeviceTabletPad  = C.WLR_INPUT_DEVICE_TABLET_PAD
+	InputDeviceTypeKeyboard   InputDeviceType = C.WLR_INPUT_DEVICE_KEYBOARD
+	InputDeviceTypePointer    InputDeviceType = C.WLR_INPUT_DEVICE_POINTER
+	InputDeviceTypeTouch      InputDeviceType = C.WLR_INPUT_DEVICE_TOUCH
+	InputDeviceTypeTabletTool InputDeviceType = C.WLR_INPUT_DEVICE_TABLET_TOOL
+	InputDeviceTypeTabletPad  InputDeviceType = C.WLR_INPUT_DEVICE_TABLET_PAD
+
+	ButtonStateReleased ButtonState = C.WLR_BUTTON_RELEASED
+	ButtonStatePressed  ButtonState = C.WLR_BUTTON_PRESSED
+
+	AxisSourceWheel      AxisSource = C.WLR_AXIS_SOURCE_WHEEL
+	AxisSourceFinger     AxisSource = C.WLR_AXIS_SOURCE_FINGER
+	AxisSourceContinuous AxisSource = C.WLR_AXIS_SOURCE_CONTINUOUS
+	AxisSourceWheelTilt  AxisSource = C.WLR_AXIS_SOURCE_WHEEL_TILT
+
+	AxisOrientationVertical   AxisOrientation = C.WLR_AXIS_ORIENTATION_VERTICAL
+	AxisOrientationHorizontal AxisOrientation = C.WLR_AXIS_ORIENTATION_HORIZONTAL
 )
 
 type InputDevice struct {
@@ -23,8 +41,8 @@ func wrapInputDevice(p unsafe.Pointer) InputDevice {
 	return InputDevice{p: (*C.struct_wlr_input_device)(p)}
 }
 
-func (d InputDevice) Type() uint32 {
-	return d.p._type
+func (d InputDevice) Type() InputDeviceType {
+	return InputDeviceType(d.p._type)
 }
 
 func (d InputDevice) Keyboard() Keyboard {
