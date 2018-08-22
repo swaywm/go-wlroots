@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/exec"
 
@@ -21,10 +22,10 @@ func main() {
 	// start the server
 	server, err := NewServer()
 	if err != nil {
-		panic(err)
+		fmt.Printf("error creating server: %s\n", err)
 	}
 	if err = server.Start(); err != nil {
-		panic(err)
+		fmt.Printf("error starting server: %s\n", err)
 	}
 
 	// run the startup command if given
@@ -33,12 +34,12 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err = cmd.Start(); err != nil {
-			panic(err)
+			fmt.Printf("error running startup command: %s\n", err)
 		}
 	}
 
 	// start the wayland event loop
 	if err = server.Run(); err != nil {
-		panic(err)
+		fmt.Printf("error running server: %s\n", err)
 	}
 }

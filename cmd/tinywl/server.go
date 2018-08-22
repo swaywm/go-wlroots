@@ -113,7 +113,8 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) viewAt(lx float64, ly float64) (*View, wlroots.Surface, float64, float64) {
-	for _, view := range s.views {
+	for i := len(s.views) - 1; i >= 0; i-- {
+		view := s.views[i]
 		surface, sx, sy := view.XDGSurface().SurfaceAt(lx-view.X, ly-view.Y)
 		if !surface.Nil() {
 			return view, surface, sx, sy
@@ -170,8 +171,8 @@ func (s *Server) focusView(view *View, surface wlroots.Surface) {
 	}
 
 	// move the view to the front
-	for i, view := range s.views {
-		if view == view {
+	for i := len(s.views) - 1; i >= 0; i-- {
+		if s.views[i] == view {
 			s.views = append(s.views[:i], s.views[i+1:]...)
 			s.views = append(s.views, view)
 			break
@@ -190,9 +191,7 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 	s.renderer.Clear(wlroots.Color{0.3, 0.3, 0.3, 1.0})
 
 	// render all of the views
-	// we need to iterate over the list in reverse order
-	for i := len(s.views) - 1; i >= 0; i-- {
-		view := s.views[i]
+	for _, view := range s.views {
 		if !view.Mapped {
 			continue
 		}
@@ -366,8 +365,8 @@ func (s *Server) handleNewXDGSurface(surface wlroots.XDGSurface) {
 	})
 	surface.OnDestroy(func(surface wlroots.XDGSurface) {
 		// TODO: keep track of views some other way
-		for i, v := range s.views {
-			if v == view {
+		for i := range s.views {
+			if s.views[i] == view {
 				s.views = append(s.views[:i], s.views[i+1:]...)
 				break
 			}
