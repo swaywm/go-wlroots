@@ -13,6 +13,11 @@ var (
 	command = flag.String("s", "", "startup command")
 )
 
+func fatal(msg string, err error) {
+	fmt.Printf("error %s: %s\n", msg, err)
+	os.Exit(1)
+}
+
 func main() {
 	flag.Parse()
 
@@ -22,10 +27,10 @@ func main() {
 	// start the server
 	server, err := NewServer()
 	if err != nil {
-		fmt.Printf("error creating server: %s\n", err)
+		fatal("initializing server", err)
 	}
 	if err = server.Start(); err != nil {
-		fmt.Printf("error starting server: %s\n", err)
+		fatal("starting server", err)
 	}
 
 	// run the startup command if given
@@ -34,12 +39,12 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err = cmd.Start(); err != nil {
-			fmt.Printf("error running startup command: %s\n", err)
+			fatal("running startup command", err)
 		}
 	}
 
 	// start the wayland event loop
 	if err = server.Run(); err != nil {
-		fmt.Printf("error running server: %s\n", err)
+		fatal("running server", err)
 	}
 }

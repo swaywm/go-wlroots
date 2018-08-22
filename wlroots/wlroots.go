@@ -26,7 +26,7 @@ func NewBackend(display Display) Backend {
 
 func (b Backend) Start() error {
 	if !C.wlr_backend_start(b.p) {
-		return errors.New("error starting backend")
+		return errors.New("can't start backend")
 	}
 
 	return nil

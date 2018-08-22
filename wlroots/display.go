@@ -28,7 +28,7 @@ func (d Display) Terminate() {
 func (d Display) AddSocketAuto() (string, error) {
 	socket := C.wl_display_add_socket_auto(d.p)
 	if socket == nil {
-		return "", errors.New("error adding socket")
+		return "", errors.New("can't auto add wayland socket")
 	}
 
 	return C.GoString(socket), nil

@@ -64,7 +64,7 @@ func (o Output) EffectiveResolution() (int, int) {
 func (o Output) MakeCurrent() (int, error) {
 	var bufferAge C.int
 	if !C.wlr_output_make_current(o.p, &bufferAge) {
-		return 0, errors.New("error making output context current")
+		return 0, errors.New("can't make output context current")
 	}
 
 	return int(bufferAge), nil
