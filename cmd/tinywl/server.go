@@ -41,6 +41,10 @@ type Server struct {
 	resizeEdges wlroots.Edges
 }
 
+type Keyboard struct {
+	dev wlroots.InputDevice
+}
+
 func NewServer() (*Server, error) {
 	s := new(Server)
 
@@ -186,10 +190,10 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 	s.renderer.Clear(wlroots.Color{0.3, 0.3, 0.3, 1.0})
 
 	// render all of the views
-	// we need to render over the list in reverse order
+	// we need to iterate over the list in reverse order
 	for i := len(s.views) - 1; i >= 0; i-- {
 		view := s.views[i]
-		if !view.Mapped() {
+		if !view.Mapped {
 			continue
 		}
 
@@ -354,11 +358,11 @@ func (s *Server) handleNewXDGSurface(surface wlroots.XDGSurface) {
 
 	view := NewView(surface)
 	surface.OnMap(func(surface wlroots.XDGSurface) {
-		view.SetMapped(true)
+		view.Mapped = true
 		s.focusView(view, surface.Surface())
 	})
 	surface.OnUnmap(func(surface wlroots.XDGSurface) {
-		view.SetMapped(false)
+		view.Mapped = false
 	})
 	surface.OnDestroy(func(surface wlroots.XDGSurface) {
 		// TODO: keep track of views some other way

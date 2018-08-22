@@ -4,6 +4,8 @@ import (
 	"flag"
 	"os"
 	"os/exec"
+
+	"github.com/alexbakker/go-wlroots/wlroots"
 )
 
 var (
@@ -12,6 +14,9 @@ var (
 
 func main() {
 	flag.Parse()
+
+	// set up logging
+	wlroots.OnLog(wlroots.LogImportanceDebug, nil)
 
 	// start the server
 	server, err := NewServer()

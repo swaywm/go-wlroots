@@ -37,10 +37,6 @@ type InputDevice struct {
 	p *C.struct_wlr_input_device
 }
 
-func wrapInputDevice(p unsafe.Pointer) InputDevice {
-	return InputDevice{p: (*C.struct_wlr_input_device)(p)}
-}
-
 func (d InputDevice) Type() InputDeviceType {
 	return InputDeviceType(d.p._type)
 }
@@ -48,4 +44,8 @@ func (d InputDevice) Type() InputDeviceType {
 func (d InputDevice) Keyboard() Keyboard {
 	p := *(*unsafe.Pointer)(unsafe.Pointer(&d.p.anon0[0]))
 	return Keyboard{p: (*C.struct_wlr_keyboard)(p)}
+}
+
+func wrapInputDevice(p unsafe.Pointer) InputDevice {
+	return InputDevice{p: (*C.struct_wlr_input_device)(p)}
 }

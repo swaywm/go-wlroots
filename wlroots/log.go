@@ -17,8 +17,8 @@ package wlroots
 //		free(msg);
 // }
 //
-// static inline void _wlr_log_set_cb(enum wlr_log_importance verbosity) {
-//		wlr_log_init(verbosity, &_wlr_log_inner_cb);
+// static inline void _wlr_log_set_cb(enum wlr_log_importance verbosity, bool is_set) {
+//		wlr_log_init(verbosity, is_set ? &_wlr_log_inner_cb : NULL);
 // }
 import "C"
 
@@ -40,10 +40,12 @@ var (
 
 //export _wlr_log_cb
 func _wlr_log_cb(importance LogImportance, msg *C.char) {
-	onLog(importance, C.GoString(msg))
+	if onLog != nil {
+		onLog(importance, C.GoString(msg))
+	}
 }
 
 func OnLog(verbosity LogImportance, cb LogFunc) {
-	C._wlr_log_set_cb(C.enum_wlr_log_importance(verbosity))
+	C._wlr_log_set_cb(C.enum_wlr_log_importance(verbosity), cb != nil)
 	onLog = cb
 }
