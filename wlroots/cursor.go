@@ -13,6 +13,10 @@ func NewCursor() Cursor {
 	return Cursor{p: p}
 }
 
+func (c Cursor) Destroy() {
+	C.wlr_cursor_destroy(c.p)
+}
+
 func (c Cursor) X() float64 {
 	return float64(c.p.x)
 }

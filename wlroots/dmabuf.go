@@ -11,3 +11,7 @@ func NewDMABuf(display Display, renderer Renderer) DMABuf {
 	p := C.wlr_linux_dmabuf_v1_create(display.p, renderer.p)
 	return DMABuf{p: p}
 }
+
+func (b DMABuf) Destroy() {
+	C.wlr_linux_dmabuf_v1_destroy(b.p)
+}

@@ -14,6 +14,10 @@ func NewXCursorManager() XCursorManager {
 	return XCursorManager{p: p}
 }
 
+func (m XCursorManager) Destroy() {
+	C.wlr_xcursor_manager_destroy(m.p)
+}
+
 func (m XCursorManager) Load() {
 	C.wlr_xcursor_manager_load(m.p, 1)
 }

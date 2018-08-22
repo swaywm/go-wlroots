@@ -24,6 +24,10 @@ func NewBackend(display Display) Backend {
 	return Backend{p: p}
 }
 
+func (b Backend) Destroy() {
+	C.wlr_backend_destroy(b.p)
+}
+
 func (b Backend) Start() error {
 	if !C.wlr_backend_start(b.p) {
 		return errors.New("can't start backend")

@@ -74,6 +74,10 @@ func (o Output) CreateGlobal() {
 	C.wlr_output_create_global(o.p)
 }
 
+func (o Output) DestroyGlobal() {
+	C.wlr_output_destroy_global(o.p)
+}
+
 func (o Output) SwapBuffers() {
 	C.wlr_output_swap_buffers(o.p, nil, nil)
 }

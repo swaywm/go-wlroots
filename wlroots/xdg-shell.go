@@ -43,6 +43,10 @@ func NewXDGShell(display Display) XDGShell {
 	return XDGShell{p: p}
 }
 
+func (s XDGShell) Destroy() {
+	C.wlr_xdg_shell_destroy(s.p)
+}
+
 func (s XDGShell) OnNewSurface(cb func(surface XDGSurface)) {
 	listener := NewListener(func(data unsafe.Pointer) {
 		cb(XDGSurface{p: (*C.struct_wlr_xdg_surface)(data)})

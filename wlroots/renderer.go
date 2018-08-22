@@ -7,6 +7,10 @@ type Renderer struct {
 	p *C.struct_wlr_renderer
 }
 
+func (r Renderer) Destroy() {
+	C.wlr_renderer_destroy(r.p)
+}
+
 func (r Renderer) InitDisplay(display Display) {
 	C.wlr_renderer_init_wl_display(r.p, display.p)
 }

@@ -36,6 +36,10 @@ func NewSeat(display Display, name string) Seat {
 	return Seat{p: p}
 }
 
+func (s Seat) Destroy() {
+	C.wlr_seat_destroy(s.p)
+}
+
 func (s Seat) OnSetCursorRequest(cb func(client SeatClient, surface Surface, serial uint32, hotspotX int32, hotspotY int32)) {
 	listener := NewListener(func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_seat_pointer_request_set_cursor_event)(data)
