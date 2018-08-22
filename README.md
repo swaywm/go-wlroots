@@ -4,10 +4,12 @@ __go-wlroots__ is a __WIP__ Go binding for
 [wlroots](https://github.com/swaywm/wlroots). Note: The API is incomplete and
 subject to change.
 
-I'm currently working on porting [SirCmpwn's Tiny Wayland
-compositor](https://gist.github.com/SirCmpwn/ae4d1cdcca97ffeb2c35f0878d75dc17):
+To test go-wlroots I've ported [SirCmpwn's Tiny Wayland
+compositor](https://gist.github.com/SirCmpwn/ae4d1cdcca97ffeb2c35f0878d75dc17) to it:
 
-![](https://u.alexbakker.me/dl?l=HW4XBE3Wc7B_mfQw.png)
+![](https://u.alexbakker.me/dl?l=b216QDQdFAZ8fHNH.png)
+
+The source of tinywl can be found in [cmd/tinywl](cmd/tinywl)
 
 ## Compiling
 
