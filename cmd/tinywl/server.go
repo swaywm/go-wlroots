@@ -406,9 +406,20 @@ func (s *Server) handleKeyBinding(sym xkb.KeySym) bool {
 	case 0xff1b: // XKB_KEY_Escape
 		s.display.Terminate()
 	case 0xffbe: // XKB_KEY_F1
-		/*if len(s.views > 1) {
+		if len(s.views) < 2 {
+			break
+		}
 
-		}*/
+		i := len(s.views) - 1
+		focusedView := s.views[i]
+		nextView := s.views[i-1]
+
+		// move the focused view to the back of the view list
+		s.views = append(s.views[:i], s.views[i+1:]...)
+		s.views = append([]*View{focusedView}, s.views...)
+
+		// focus the next view
+		s.focusView(nextView, nextView.Surface())
 	default:
 		return false
 	}
