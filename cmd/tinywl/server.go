@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/alexbakker/go-wlroots/wlroots"
-	"github.com/alexbakker/go-wlroots/xkbcommon"
+	"github.com/alexbakker/go-wlroots/xkb"
 )
 
 type CursorMode int
@@ -29,8 +29,8 @@ type Server struct {
 	xdgShell   wlroots.XDGShell
 	dmaBuf     wlroots.DMABuf
 
-	views       []*View
-	hasKeyboard bool
+	views     []*View
+	keyboards []*Keyboard
 
 	grabbedView *View
 	cursorMode  CursorMode
@@ -305,20 +305,44 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 	case wlroots.InputDeviceTypePointer:
 		s.cursor.AttachInputDevice(dev)
 	case wlroots.InputDeviceTypeKeyboard:
-		xkb := xkbcommon.NewContext()
-		keymap := xkb.Map()
+		context := xkb.NewContext()
+		keymap := context.Map()
 		keyboard := dev.Keyboard()
 		keyboard.SetKeymap(keymap)
 		keymap.Destroy()
-		xkb.Destroy()
+		context.Destroy()
 		keyboard.SetRepeatInfo(25, 600)
 
+		keyboard.OnKey(func(keyboard wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
+			// translate lininput keycode to xkbcommon
+			keyCode = keyCode + 8
+			syms := keyboard.XKBState().Syms(keyCode)
+
+			var handled bool
+			modifiers := keyboard.Modifiers()
+			if (modifiers&wlroots.KeyboardModifierAlt != 0) && state == wlroots.KeyStatePressed {
+				for _, sym := range syms {
+					handled = s.handleKeyBinding(sym)
+				}
+			}
+
+			if !handled {
+				s.seat.SetKeyboard(dev)
+				s.seat.NotifyKeyboardKey(time, keyCode, state)
+			}
+		})
+
+		keyboard.OnModifiers(func(keyboard wlroots.Keyboard) {
+			s.seat.SetKeyboard(dev)
+			s.seat.NotifyKeyboardModifiers(keyboard)
+		})
+
 		s.seat.SetKeyboard(dev)
-		s.hasKeyboard = true
+		s.keyboards = append(s.keyboards, &Keyboard{dev: dev})
 	}
 
 	caps := wlroots.SeatCapabilityPointer
-	if s.hasKeyboard {
+	if len(s.keyboards) > 0 {
 		caps |= wlroots.SeatCapabilityKeyboard
 	}
 	s.seat.SetCapabilities(caps)
@@ -373,6 +397,21 @@ func (s *Server) handleCursorButton(dev wlroots.InputDevice, time uint32, button
 
 func (s *Server) handleCursorAxis(dev wlroots.InputDevice, time uint32, source wlroots.AxisSource, orientation wlroots.AxisOrientation, delta float64, deltaDiscrete int32) {
 	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source)
+}
+
+func (s *Server) handleKeyBinding(sym xkb.KeySym) bool {
+	switch sym {
+	case 0xff1b: // XKB_KEY_Escape
+		s.display.Terminate()
+	case 0xffbe: // XKB_KEY_F1
+		/*if len(s.views > 1) {
+
+		}*/
+	default:
+		return false
+	}
+
+	return true
 }
 
 func (s *Server) beginInteractive(view *View, mode CursorMode, edges wlroots.Edges) {

@@ -21,6 +21,10 @@ func (d Display) Run() {
 	C.wl_display_run(d.p)
 }
 
+func (d Display) Terminate() {
+	C.wl_display_terminate(d.p)
+}
+
 func (d Display) AddSocketAuto() (string, error) {
 	socket := C.wl_display_add_socket_auto(d.p)
 	if socket == nil {
