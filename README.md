@@ -9,7 +9,7 @@ compositor](https://gist.github.com/SirCmpwn/ae4d1cdcca97ffeb2c35f0878d75dc17) t
 
 ![](https://u.alexbakker.me/dl?l=b216QDQdFAZ8fHNH.png)
 
-The source of tinywl can be found in [cmd/tinywl](cmd/tinywl)
+The source of tinywl can be found in [cmd/tinywl](cmd/tinywl).
 
 ## Compiling
 

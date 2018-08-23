@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/alexbakker/go-wlroots/wlroots"
+	"github.com/swaywm/go-wlroots/wlroots"
 )
 
 var (

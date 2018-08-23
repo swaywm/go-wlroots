@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/alexbakker/go-wlroots/wlroots"
-	"github.com/alexbakker/go-wlroots/xkb"
+	"github.com/swaywm/go-wlroots/wlroots"
+	"github.com/swaywm/go-wlroots/xkb"
 )
 
 type CursorMode int
