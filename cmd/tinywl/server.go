@@ -203,9 +203,6 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 	output.SwapBuffers()
 }
 
-func (s *Server) handleDestroyOutput(output wlroots.Output) {
-}
-
 func (s *Server) handleNewOutput(output wlroots.Output) {
 	// TODO: pick the preferred mode instead of the first one
 	modes := output.Modes()
@@ -213,10 +210,8 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 		output.SetMode(modes[len(modes)-1])
 	}
 
-	output.OnFrame(s.handleNewFrame)
-	output.OnDestroy(s.handleDestroyOutput)
-
 	s.layout.AddOutputAuto(output)
+	output.OnFrame(s.handleNewFrame)
 	output.CreateGlobal()
 }
 

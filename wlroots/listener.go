@@ -33,7 +33,7 @@ func _wl_listener_cb(listener *C.struct_wl_listener, data unsafe.Pointer) {
 }
 
 func NewListener(cb ListenerCallback) Listener {
-	p := new(C.struct_wl_listener)
+	p := (*C.struct_wl_listener)(C.malloc(C.sizeof_struct_wl_listener))
 	C._wl_listener_set_cb(p)
 
 	listener := Listener{p: p, cb: cb}
