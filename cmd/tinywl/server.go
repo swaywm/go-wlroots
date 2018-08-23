@@ -318,7 +318,7 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 
 		keyboard.OnKey(func(keyboard wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
 			// translate lininput keycode to xkbcommon and obtain keysyms
-			syms := keyboard.XKBState().Syms(keyCode + 8)
+			syms := keyboard.XKBState().Syms(xkb.KeyCode(keyCode + 8))
 
 			var handled bool
 			modifiers := keyboard.Modifiers()
@@ -403,9 +403,9 @@ func (s *Server) handleCursorAxis(dev wlroots.InputDevice, time uint32, source w
 
 func (s *Server) handleKeyBinding(sym xkb.KeySym) bool {
 	switch sym {
-	case 0xff1b: // XKB_KEY_Escape
+	case xkb.KeySymEscape:
 		s.display.Terminate()
-	case 0xffbe: // XKB_KEY_F1
+	case xkb.KeySymF1:
 		if len(s.views) < 2 {
 			break
 		}
