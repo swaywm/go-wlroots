@@ -1,4 +1,4 @@
-# go-wlroots
+# go-wlroots [![Documentation](https://godoc.org/github.com/swaywm/go-wlroots/wlroots?status.svg)](https://godoc.org/github.com/swaywm/go-wlroots/wlroots)
 
 __go-wlroots__ is a __WIP__ Go binding for
 [wlroots](https://github.com/swaywm/wlroots). Note: The API is incomplete and
