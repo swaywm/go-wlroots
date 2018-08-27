@@ -2,7 +2,10 @@ package wlroots
 
 // #include <wayland-server.h>
 import "C"
-import "errors"
+import (
+	"errors"
+	"unsafe"
+)
 
 type Display struct {
 	p *C.struct_wl_display
@@ -10,6 +13,10 @@ type Display struct {
 
 func NewDisplay() Display {
 	p := C.wl_display_create()
+	l := man.add(unsafe.Pointer(p), nil, func(data unsafe.Pointer) {
+		man.delete(unsafe.Pointer(p))
+	})
+	C.wl_display_add_destroy_listener(p, l.p)
 	return Display{p: p}
 }
 

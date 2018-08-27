@@ -108,7 +108,11 @@ func (s *Server) Start() error {
 
 func (s *Server) Run() error {
 	s.display.Run()
+
 	s.display.Destroy()
+	s.layout.Destroy()
+	s.cursorMgr.Destroy()
+	s.cursor.Destroy()
 	return nil
 }
 

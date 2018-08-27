@@ -1,5 +1,23 @@
 package wlroots
 
+// This whole mess has to exist for a number of reasons:
+//
+// 1. We need to allocate all instances of wl_listener on the heap as storing Go
+// pointers in C after a cgo call returns is not allowed.
+//
+// 2. The wlroots library implicitly destroys objects when wl_display is
+// destroyed. So, we need to keep track of all objects (and their listeners)
+// manually and listen for the destroy signal to be able to free everything.
+//
+// 3 (TODO). As we're keeping track of all objects anyway, we might as well
+// store a Go pointer to the wrapper struct along with them in order to be able
+// to pass the same Go pointer through callbacks every time. This will also
+// allow calling runtime.SetFinalizer on some of them to clean them up early
+// when the GC notices it has gone out of scope.
+//
+// Send help.
+
+// #include <stdlib.h>
 // #include <wayland-server.h>
 //
 // void _wl_listener_cb(struct wl_listener *listener, void *data);
@@ -8,35 +26,89 @@ package wlroots
 //		listener->notify = &_wl_listener_cb;
 // }
 import "C"
-import "unsafe"
-
-type (
-	ListenerCallback func(data unsafe.Pointer)
+import (
+	"unsafe"
 )
 
-type Listener struct {
-	p  *C.struct_wl_listener
-	cb ListenerCallback
+type (
+	listenerCallback func(data unsafe.Pointer)
+)
+
+type manager struct {
+	objects   map[unsafe.Pointer][]*listener
+	listeners map[*C.struct_wl_listener]*listener
+}
+
+type listener struct {
+	p   *C.struct_wl_listener
+	s   *C.struct_wl_signal
+	cbs []listenerCallback
 }
 
 var (
 	// TODO: guard this with a mutex
-	listeners = map[*C.struct_wl_listener]Listener{}
+	man = &manager{
+		objects:   map[unsafe.Pointer][]*listener{},
+		listeners: map[*C.struct_wl_listener]*listener{},
+	}
 )
 
 //export _wl_listener_cb
 func _wl_listener_cb(listener *C.struct_wl_listener, data unsafe.Pointer) {
-	l := listeners[listener]
-	if l.cb != nil {
-		l.cb(data)
+	l := man.listeners[listener]
+	for _, cb := range l.cbs {
+		cb(data)
 	}
 }
 
-func NewListener(cb ListenerCallback) Listener {
-	p := (*C.struct_wl_listener)(C.malloc(C.sizeof_struct_wl_listener))
-	C._wl_listener_set_cb(p)
+func (m *manager) add(p unsafe.Pointer, signal *C.struct_wl_signal, cb listenerCallback) *listener {
+	// if a listener for this object and signal already exists, add the callback
+	// to the existing listener
+	if signal != nil {
+		for _, l := range m.objects[p] {
+			if l.s != nil && l.s == signal {
+				l.cbs = append(l.cbs, cb)
+				return l
+			}
+		}
+	}
 
-	listener := Listener{p: p, cb: cb}
-	listeners[p] = listener
-	return listener
+	lp := (*C.struct_wl_listener)(C.calloc(C.sizeof_struct_wl_listener, 1))
+	C._wl_listener_set_cb(lp)
+	if signal != nil {
+		C.wl_signal_add((*C.struct_wl_signal)(signal), lp)
+	}
+
+	l := &listener{
+		p:   lp,
+		s:   signal,
+		cbs: []listenerCallback{cb},
+	}
+	m.listeners[lp] = l
+	m.objects[p] = append(m.objects[p], l)
+
+	return l
+}
+
+func (m *manager) has(p unsafe.Pointer) bool {
+	_, found := m.objects[p]
+	return found
+}
+
+func (m *manager) delete(p unsafe.Pointer) {
+	for _, l := range m.objects[p] {
+		delete(m.listeners, l.p)
+
+		// remove the listener from the signal
+		C.wl_list_remove(&l.p.link)
+
+		// free the listener
+		C.free(unsafe.Pointer(l.p))
+	}
+
+	delete(m.objects, p)
+}
+
+func (m *manager) track(p unsafe.Pointer, destroySignal *C.struct_wl_signal) {
+	m.add(p, destroySignal, func(data unsafe.Pointer) { m.delete(p) })
 }

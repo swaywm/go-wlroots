@@ -21,6 +21,7 @@ const (
 )
 
 var (
+	// TODO: guard this with a mutex
 	xdgSurfaceWalkers = map[*C.struct_wlr_xdg_surface]XDGSurfaceWalkFunc{}
 )
 
@@ -40,6 +41,7 @@ type XDGTopLevel struct {
 
 func NewXDGShell(display Display) XDGShell {
 	p := C.wlr_xdg_shell_create(display.p)
+	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return XDGShell{p: p}
 }
 
@@ -47,12 +49,18 @@ func (s XDGShell) Destroy() {
 	C.wlr_xdg_shell_destroy(s.p)
 }
 
-func (s XDGShell) OnNewSurface(cb func(surface XDGSurface)) {
-	listener := NewListener(func(data unsafe.Pointer) {
-		cb(XDGSurface{p: (*C.struct_wlr_xdg_surface)(data)})
+func (s XDGShell) OnNewSurface(cb func(XDGSurface)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.new_surface, func(data unsafe.Pointer) {
+		surface := XDGSurface{p: (*C.struct_wlr_xdg_surface)(data)}
+		man.add(unsafe.Pointer(surface.p), &surface.p.events.destroy, func(data unsafe.Pointer) {
+			man.delete(unsafe.Pointer(surface.p))
+			man.delete(unsafe.Pointer(surface.TopLevel().p))
+		})
+		man.add(unsafe.Pointer(surface.p.surface), &surface.p.surface.events.destroy, func(data unsafe.Pointer) {
+			man.delete(unsafe.Pointer(surface.p.surface))
+		})
+		cb(surface)
 	})
-
-	C.wl_signal_add(&s.p.events.new_surface, listener.p)
 }
 
 //export _wlr_xdg_surface_for_each_cb
@@ -101,27 +109,21 @@ func (s XDGSurface) SurfaceAt(sx float64, sy float64) (surface Surface, subX flo
 }
 
 func (s XDGSurface) OnMap(cb func(XDGSurface)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.events._map, func(data unsafe.Pointer) {
 		cb(s)
 	})
-
-	C.wl_signal_add(&s.p.events._map, listener.p)
 }
 
 func (s XDGSurface) OnUnmap(cb func(XDGSurface)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.unmap, func(data unsafe.Pointer) {
 		cb(s)
 	})
-
-	C.wl_signal_add(&s.p.events.unmap, listener.p)
 }
 
 func (s XDGSurface) OnDestroy(cb func(XDGSurface)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.destroy, func(data unsafe.Pointer) {
 		cb(s)
 	})
-
-	C.wl_signal_add(&s.p.events.destroy, listener.p)
 }
 
 func (s XDGSurface) Geometry() Box {
@@ -131,23 +133,19 @@ func (s XDGSurface) Geometry() Box {
 }
 
 func (t XDGTopLevel) OnRequestMove(cb func(client SeatClient, serial uint32)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(t.p), &t.p.events.request_move, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_xdg_toplevel_move_event)(data)
 		client := SeatClient{p: event.seat}
 		cb(client, uint32(event.serial))
 	})
-
-	C.wl_signal_add(&t.p.events.request_move, listener.p)
 }
 
 func (t XDGTopLevel) OnRequestResize(cb func(client SeatClient, serial uint32, edges Edges)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(t.p), &t.p.events.request_resize, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_xdg_toplevel_resize_event)(data)
 		client := SeatClient{p: event.seat}
 		cb(client, uint32(event.serial), Edges(event.edges))
 	})
-
-	C.wl_signal_add(&t.p.events.request_resize, listener.p)
 }
 
 func (s XDGTopLevel) Nil() bool {

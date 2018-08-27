@@ -21,6 +21,7 @@ type Backend struct {
 
 func NewBackend(display Display) Backend {
 	p := C.wlr_backend_autocreate(display.p, nil)
+	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Backend{p: p}
 }
 
@@ -37,22 +38,30 @@ func (b Backend) Start() error {
 }
 
 func (b Backend) OnNewOutput(cb func(Output)) {
-	listener := NewListener(func(data unsafe.Pointer) {
-		cb(wrapOutput(data))
+	man.add(unsafe.Pointer(b.p), &b.p.events.new_output, func(data unsafe.Pointer) {
+		output := wrapOutput(data)
+		man.track(unsafe.Pointer(output.p), &output.p.events.destroy)
+		cb(output)
 	})
-
-	C.wl_signal_add(&b.p.events.new_output, listener.p)
 }
 
 func (b Backend) OnNewInput(cb func(InputDevice)) {
-	listener := NewListener(func(data unsafe.Pointer) {
-		cb(wrapInputDevice(data))
+	man.add(unsafe.Pointer(b.p), &b.p.events.new_input, func(data unsafe.Pointer) {
+		dev := wrapInputDevice(data)
+		man.add(unsafe.Pointer(dev.p), &dev.p.events.destroy, func(data unsafe.Pointer) {
+			// delete the underlying device type first
+			man.delete(*(*unsafe.Pointer)(unsafe.Pointer(&dev.p.anon0[0])))
+			// then delete the wlr_input_device itself
+			man.delete(unsafe.Pointer(dev.p))
+		})
+		cb(dev)
 	})
-
-	C.wl_signal_add(&b.p.events.new_input, listener.p)
 }
 
 func (b Backend) Renderer() Renderer {
 	p := C.wlr_backend_get_renderer(b.p)
+	// TODO: find out why events.destroy is not found
+	// (error: inconsistent definitions for C.struct_wlr_renderer)
+	//man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Renderer{p: p}
 }

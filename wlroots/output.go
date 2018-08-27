@@ -34,19 +34,15 @@ func (o Output) TransformMatrix() Matrix {
 }
 
 func (o Output) OnFrame(cb func(Output)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(o.p), &o.p.events.frame, func(data unsafe.Pointer) {
 		cb(o)
 	})
-
-	C.wl_signal_add(&o.p.events.frame, listener.p)
 }
 
 func (o Output) OnDestroy(cb func(Output)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(o.p), &o.p.events.destroy, func(data unsafe.Pointer) {
 		cb(o)
 	})
-
-	C.wl_signal_add(&o.p.events.destroy, listener.p)
 }
 
 func (o Output) TransformedResolution() (int, int) {
@@ -104,6 +100,7 @@ type OutputLayout struct {
 
 func NewOutputLayout() OutputLayout {
 	p := C.wlr_output_layout_create()
+	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return OutputLayout{p: p}
 }
 

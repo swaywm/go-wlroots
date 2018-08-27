@@ -52,18 +52,14 @@ func (k Keyboard) Modifiers() KeyboardModifier {
 }
 
 func (k Keyboard) OnModifiers(cb func(keyboard Keyboard)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(k.p), &k.p.events.modifiers, func(data unsafe.Pointer) {
 		cb(k)
 	})
-
-	C.wl_signal_add(&k.p.events.modifiers, listener.p)
 }
 
 func (k Keyboard) OnKey(cb func(keyboard Keyboard, time uint32, keyCode uint32, updateState bool, state KeyState)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(k.p), &k.p.events.key, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_event_keyboard_key)(data)
 		cb(k, uint32(event.time_msec), uint32(event.keycode), bool(event.update_state), KeyState(event.state))
 	})
-
-	C.wl_signal_add(&k.p.events.key, listener.p)
 }

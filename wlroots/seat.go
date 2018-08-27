@@ -33,6 +33,7 @@ func NewSeat(display Display, name string) Seat {
 	s := C.CString(name)
 	p := C.wlr_seat_create(display.p, s)
 	C.free(unsafe.Pointer(s))
+	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Seat{p: p}
 }
 
@@ -41,14 +42,12 @@ func (s Seat) Destroy() {
 }
 
 func (s Seat) OnSetCursorRequest(cb func(client SeatClient, surface Surface, serial uint32, hotspotX int32, hotspotY int32)) {
-	listener := NewListener(func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.request_set_cursor, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_seat_pointer_request_set_cursor_event)(data)
 		client := SeatClient{p: event.seat_client}
 		surface := Surface{p: event.surface}
 		cb(client, surface, uint32(event.serial), int32(event.hotspot_x), int32(event.hotspot_y))
 	})
-
-	C.wl_signal_add(&s.p.events.request_set_cursor, listener.p)
 }
 
 func (s Seat) SetCapabilities(caps SeatCapability) {
