@@ -17,3 +17,9 @@ func NewDataDeviceManager(display Display) DataDeviceManager {
 func (m DataDeviceManager) Destroy() {
 	C.wlr_data_device_manager_destroy(m.p)
 }
+
+func (m DataDeviceManager) OnDestroy(cb func(DataDeviceManager)) {
+	man.add(unsafe.Pointer(m.p), &m.p.events.destroy, func(unsafe.Pointer) {
+		cb(m)
+	})
+}

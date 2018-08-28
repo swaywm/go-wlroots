@@ -17,3 +17,9 @@ func NewDMABuf(display Display, renderer Renderer) DMABuf {
 func (b DMABuf) Destroy() {
 	C.wlr_linux_dmabuf_v1_destroy(b.p)
 }
+
+func (b DMABuf) OnDestroy(cb func(DMABuf)) {
+	man.add(unsafe.Pointer(b.p), &b.p.events.destroy, func(unsafe.Pointer) {
+		cb(b)
+	})
+}

@@ -29,6 +29,12 @@ func (b Backend) Destroy() {
 	C.wlr_backend_destroy(b.p)
 }
 
+func (b Backend) OnDestroy(cb func(Backend)) {
+	man.add(unsafe.Pointer(b.p), &b.p.events.destroy, func(unsafe.Pointer) {
+		cb(b)
+	})
+}
+
 func (b Backend) Start() error {
 	if !C.wlr_backend_start(b.p) {
 		return errors.New("can't start backend")

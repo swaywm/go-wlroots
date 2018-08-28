@@ -4,7 +4,10 @@ package wlroots
 // #include <wlr/types/wlr_surface.h>
 // #include <wlr/types/wlr_xdg_shell.h>
 import "C"
-import "time"
+import (
+	"time"
+	"unsafe"
+)
 
 type Surface struct {
 	p *C.struct_wlr_surface
@@ -16,6 +19,12 @@ type SurfaceState struct {
 
 func (s Surface) Nil() bool {
 	return s.p == nil
+}
+
+func (s Surface) OnDestroy(cb func(Surface)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.destroy, func(unsafe.Pointer) {
+		cb(s)
+	})
 }
 
 func (s Surface) Texture() Texture {

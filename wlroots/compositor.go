@@ -17,3 +17,9 @@ func NewCompositor(display Display, renderer Renderer) Compositor {
 func (c Compositor) Destroy() {
 	C.wlr_compositor_destroy(c.p)
 }
+
+func (c Compositor) OnDestroy(cb func(Compositor)) {
+	man.add(unsafe.Pointer(c.p), &c.p.events.destroy, func(unsafe.Pointer) {
+		cb(c)
+	})
+}

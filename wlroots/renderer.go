@@ -11,6 +11,12 @@ func (r Renderer) Destroy() {
 	C.wlr_renderer_destroy(r.p)
 }
 
+/*func (r Renderer) OnDestroy(cb func(Output)) {
+	man.add(unsafe.Pointer(r.p), &r.p.events.destroy, func(unsafe.Pointer) {
+		cb(r)
+	})
+}*/
+
 func (r Renderer) InitDisplay(display Display) {
 	C.wlr_renderer_init_wl_display(r.p, display.p)
 }

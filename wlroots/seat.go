@@ -41,6 +41,12 @@ func (s Seat) Destroy() {
 	C.wlr_seat_destroy(s.p)
 }
 
+func (s Seat) OnDestroy(cb func(Seat)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.destroy, func(unsafe.Pointer) {
+		cb(s)
+	})
+}
+
 func (s Seat) OnSetCursorRequest(cb func(client SeatClient, surface Surface, serial uint32, hotspotX int32, hotspotY int32)) {
 	man.add(unsafe.Pointer(s.p), &s.p.events.request_set_cursor, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_seat_pointer_request_set_cursor_event)(data)

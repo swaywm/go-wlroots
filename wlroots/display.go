@@ -13,15 +13,22 @@ type Display struct {
 
 func NewDisplay() Display {
 	p := C.wl_display_create()
-	l := man.add(unsafe.Pointer(p), nil, func(data unsafe.Pointer) {
+	d := Display{p: p}
+	d.OnDestroy(func(Display) {
 		man.delete(unsafe.Pointer(p))
 	})
-	C.wl_display_add_destroy_listener(p, l.p)
-	return Display{p: p}
+	return d
 }
 
 func (d Display) Destroy() {
 	C.wl_display_destroy(d.p)
+}
+
+func (d Display) OnDestroy(cb func(Display)) {
+	l := man.add(unsafe.Pointer(d.p), nil, func(data unsafe.Pointer) {
+		cb(d)
+	})
+	C.wl_display_add_destroy_listener(d.p, l.p)
 }
 
 func (d Display) Run() {

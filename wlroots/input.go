@@ -37,6 +37,12 @@ type InputDevice struct {
 	p *C.struct_wlr_input_device
 }
 
+func (d InputDevice) OnDestroy(cb func(InputDevice)) {
+	man.add(unsafe.Pointer(d.p), &d.p.events.destroy, func(unsafe.Pointer) {
+		cb(d)
+	})
+}
+
 func (d InputDevice) Type() InputDeviceType {
 	return InputDeviceType(d.p._type)
 }

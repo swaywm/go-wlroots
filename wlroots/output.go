@@ -21,6 +21,12 @@ func wrapOutput(p unsafe.Pointer) Output {
 	return Output{p: (*C.struct_wlr_output)(p)}
 }
 
+func (o Output) OnDestroy(cb func(Output)) {
+	man.add(unsafe.Pointer(o.p), &o.p.events.destroy, func(unsafe.Pointer) {
+		cb(o)
+	})
+}
+
 func (o Output) Name() string {
 	return C.GoString(&o.p.name[0])
 }
@@ -35,12 +41,6 @@ func (o Output) TransformMatrix() Matrix {
 
 func (o Output) OnFrame(cb func(Output)) {
 	man.add(unsafe.Pointer(o.p), &o.p.events.frame, func(data unsafe.Pointer) {
-		cb(o)
-	})
-}
-
-func (o Output) OnDestroy(cb func(Output)) {
-	man.add(unsafe.Pointer(o.p), &o.p.events.destroy, func(data unsafe.Pointer) {
 		cb(o)
 	})
 }
