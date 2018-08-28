@@ -9,6 +9,7 @@ package wlroots
 // }
 import "C"
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -22,7 +23,8 @@ const (
 
 var (
 	// TODO: guard this with a mutex
-	xdgSurfaceWalkers = map[*C.struct_wlr_xdg_surface]XDGSurfaceWalkFunc{}
+	xdgSurfaceWalkers      = map[*C.struct_wlr_xdg_surface]XDGSurfaceWalkFunc{}
+	xdgSurfaceWalkersMutex sync.RWMutex
 )
 
 type XDGShell struct {
@@ -71,7 +73,9 @@ func (s XDGShell) OnNewSurface(cb func(XDGSurface)) {
 
 //export _wlr_xdg_surface_for_each_cb
 func _wlr_xdg_surface_for_each_cb(surface *C.struct_wlr_surface, sx C.int, sy C.int, data unsafe.Pointer) {
+	xdgSurfaceWalkersMutex.RLock()
 	cb := xdgSurfaceWalkers[(*C.struct_wlr_xdg_surface)(data)]
+	xdgSurfaceWalkersMutex.RUnlock()
 	if cb != nil {
 		cb(Surface{p: surface}, int(sx), int(sy))
 	}
@@ -82,9 +86,15 @@ func (s XDGSurface) Nil() bool {
 }
 
 func (s XDGSurface) Walk(visit XDGSurfaceWalkFunc) {
+	xdgSurfaceWalkersMutex.Lock()
 	xdgSurfaceWalkers[s.p] = visit
+	xdgSurfaceWalkersMutex.Unlock()
+
 	C._wlr_xdg_surface_for_each_surface(s.p, unsafe.Pointer(s.p))
+
+	xdgSurfaceWalkersMutex.Lock()
 	delete(xdgSurfaceWalkers, s.p)
+	xdgSurfaceWalkersMutex.Unlock()
 }
 
 func (s XDGSurface) Role() XDGSurfaceRole {

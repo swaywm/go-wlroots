@@ -27,6 +27,7 @@ package wlroots
 // }
 import "C"
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -35,6 +36,7 @@ type (
 )
 
 type manager struct {
+	mutex     sync.RWMutex
 	objects   map[unsafe.Pointer][]*listener
 	listeners map[*C.struct_wl_listener]*listener
 }
@@ -46,7 +48,6 @@ type listener struct {
 }
 
 var (
-	// TODO: guard this with a mutex
 	man = &manager{
 		objects:   map[unsafe.Pointer][]*listener{},
 		listeners: map[*C.struct_wl_listener]*listener{},
@@ -55,13 +56,18 @@ var (
 
 //export _wl_listener_cb
 func _wl_listener_cb(listener *C.struct_wl_listener, data unsafe.Pointer) {
+	man.mutex.RLock()
 	l := man.listeners[listener]
+	man.mutex.RUnlock()
 	for _, cb := range l.cbs {
 		cb(data)
 	}
 }
 
 func (m *manager) add(p unsafe.Pointer, signal *C.struct_wl_signal, cb listenerCallback) *listener {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	// if a listener for this object and signal already exists, add the callback
 	// to the existing listener
 	if signal != nil {
@@ -91,11 +97,16 @@ func (m *manager) add(p unsafe.Pointer, signal *C.struct_wl_signal, cb listenerC
 }
 
 func (m *manager) has(p unsafe.Pointer) bool {
+	m.mutex.RLock()
 	_, found := m.objects[p]
+	m.mutex.RUnlock()
 	return found
 }
 
 func (m *manager) delete(p unsafe.Pointer) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	for _, l := range m.objects[p] {
 		delete(m.listeners, l.p)
 
