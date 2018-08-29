@@ -243,7 +243,7 @@ func (s *Server) processCursorMotion(time uint32) {
 	view, surface, sx, sy := s.viewAt(s.cursor.X(), s.cursor.Y())
 	if view == nil {
 		// if there is no view, set the default cursor image
-		s.cursorMgr.SetImage(s.cursor, "left_ptr")
+		s.cursorMgr.SetCursorImage(s.cursor, "left_ptr")
 	}
 
 	if !surface.Nil() {
