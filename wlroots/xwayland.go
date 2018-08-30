@@ -51,6 +51,10 @@ func (s XWaylandSurface) Surface() Surface {
 	return Surface{p: s.p.surface}
 }
 
+func (s XWaylandSurface) Configure(x int16, y int16, width uint16, height uint16) {
+	C.wlr_xwayland_surface_configure(s.p, C.int16_t(x), C.int16_t(y), C.uint16_t(width), C.uint16_t(height))
+}
+
 func (s XWaylandSurface) OnMap(cb func(XWaylandSurface)) {
 	man.add(unsafe.Pointer(s.p), &s.p.events._map, func(data unsafe.Pointer) {
 		cb(s)
@@ -66,5 +70,25 @@ func (s XWaylandSurface) OnUnmap(cb func(XWaylandSurface)) {
 func (s XWaylandSurface) OnDestroy(cb func(XWaylandSurface)) {
 	man.add(unsafe.Pointer(s.p), &s.p.events.destroy, func(data unsafe.Pointer) {
 		cb(s)
+	})
+}
+
+func (s XWaylandSurface) OnRequestMove(cb func(surface XWaylandSurface)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.request_move, func(data unsafe.Pointer) {
+		cb(s)
+	})
+}
+
+func (s XWaylandSurface) OnRequestResize(cb func(surface XWaylandSurface, edges Edges)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.request_resize, func(data unsafe.Pointer) {
+		event := (*C.struct_wlr_xwayland_resize_event)(data)
+		cb(s, Edges(event.edges))
+	})
+}
+
+func (s XWaylandSurface) OnRequestConfigure(cb func(surface XWaylandSurface, x int16, y int16, width uint16, height uint16)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.request_configure, func(data unsafe.Pointer) {
+		event := (*C.struct_wlr_xwayland_surface_configure_event)(data)
+		cb(s, int16(event.x), int16(event.y), uint16(event.width), uint16(event.height))
 	})
 }
