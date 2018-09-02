@@ -27,7 +27,6 @@ type Server struct {
 	dataDevMgr wlroots.DataDeviceManager
 	seat       wlroots.Seat
 	xdgShell   wlroots.XDGShell
-	dmaBuf     wlroots.DMABuf
 
 	views     []*View
 	keyboards []*Keyboard
@@ -59,10 +58,9 @@ func NewServer() (*Server, error) {
 	s.renderer = s.backend.Renderer()
 	s.renderer.InitDisplay(s.display)
 
-	// create compositor, dmabuf and data device manager interfaces
+	// create compositor and data device manager interfaces
 	s.compositor = wlroots.NewCompositor(s.display, s.renderer)
 	s.dataDevMgr = wlroots.NewDataDeviceManager(s.display)
-	s.dmaBuf = wlroots.NewDMABuf(s.display, s.renderer)
 
 	// create output layout
 	s.layout = wlroots.NewOutputLayout()
