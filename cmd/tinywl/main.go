@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/swaywm/go-wlroots/wlroots"
 )
@@ -16,6 +17,12 @@ var (
 func fatal(msg string, err error) {
 	fmt.Printf("error %s: %s\n", msg, err)
 	os.Exit(1)
+}
+
+func init() {
+	// lock the main goroutine onto the current OS thread
+	// we need to do this because EGL uses thread local storage
+	runtime.LockOSThread()
 }
 
 func main() {
