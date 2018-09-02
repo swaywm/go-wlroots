@@ -143,9 +143,12 @@ func (s XDGSurface) OnDestroy(cb func(XDGSurface)) {
 }
 
 func (s XDGSurface) Geometry() Box {
-	var box Box
-	C.wlr_xdg_surface_get_geometry(s.p, &box.b)
-	return box
+	var cb C.struct_wlr_box
+	C.wlr_xdg_surface_get_geometry(s.p, &cb)
+
+	var b Box
+	b.fromC(&cb)
+	return b
 }
 
 func (t XDGTopLevel) OnRequestMove(cb func(client SeatClient, serial uint32)) {

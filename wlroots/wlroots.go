@@ -11,10 +11,6 @@ import (
 	"unsafe"
 )
 
-type Color struct {
-	R, G, B, A float32
-}
-
 type Backend struct {
 	p *C.struct_wlr_backend
 }

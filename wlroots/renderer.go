@@ -25,8 +25,8 @@ func (r Renderer) Begin(output Output, width int, height int) {
 	C.wlr_renderer_begin(r.p, C.int(width), C.int(height))
 }
 
-func (r Renderer) Clear(color Color) {
-	c := []C.float{C.float(color.R), C.float(color.G), C.float(color.B), C.float(color.A)}
+func (r Renderer) Clear(color *Color) {
+	c := color.toC()
 	C.wlr_renderer_clear(r.p, &c[0])
 }
 
@@ -35,5 +35,13 @@ func (r Renderer) End() {
 }
 
 func (r Renderer) RenderTextureWithMatrix(texture Texture, matrix *Matrix, alpha float32) {
-	C.wlr_render_texture_with_matrix(r.p, texture.p, &matrix.m[0], C.float(alpha))
+	m := matrix.toC()
+	C.wlr_render_texture_with_matrix(r.p, texture.p, &m[0], C.float(alpha))
+}
+
+func (r Renderer) RenderRect(box *Box, color *Color, projection *Matrix) {
+	b := box.toC()
+	c := color.toC()
+	pm := projection.toC()
+	C.wlr_render_rect(r.p, &b, &c[0], &pm[0])
 }

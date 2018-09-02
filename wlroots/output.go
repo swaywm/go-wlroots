@@ -36,7 +36,9 @@ func (o Output) Scale() float32 {
 }
 
 func (o Output) TransformMatrix() Matrix {
-	return Matrix{m: o.p.transform_matrix}
+	var matrix Matrix
+	matrix.fromC(&o.p.transform_matrix)
+	return matrix
 }
 
 func (o Output) OnFrame(cb func(Output)) {

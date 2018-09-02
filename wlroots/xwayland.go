@@ -51,6 +51,15 @@ func (s XWaylandSurface) Surface() Surface {
 	return Surface{p: s.p.surface}
 }
 
+func (s XWaylandSurface) Geometry() Box {
+	return Box{
+		X:      int(s.p.x),
+		Y:      int(s.p.y),
+		Width:  int(s.p.width),
+		Height: int(s.p.height),
+	}
+}
+
 func (s XWaylandSurface) Configure(x int16, y int16, width uint16, height uint16) {
 	C.wlr_xwayland_surface_configure(s.p, C.int16_t(x), C.int16_t(y), C.uint16_t(width), C.uint16_t(height))
 }

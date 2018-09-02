@@ -141,13 +141,12 @@ func (s *Server) renderView(output wlroots.Output, view *View) {
 		state := surface.CurrentState()
 		transform := wlroots.OutputTransformInvert(state.Transform())
 
-		var box wlroots.Box
-		box.Set(
-			int(ox*float64(scale)),
-			int(oy*float64(scale)),
-			int(float32(state.Width())*scale),
-			int(float32(state.Height())*scale),
-		)
+		box := wlroots.Box{
+			X:      int(ox * float64(scale)),
+			Y:      int(oy * float64(scale)),
+			Width:  int(float32(state.Width()) * scale),
+			Height: int(float32(state.Height()) * scale),
+		}
 
 		var matrix wlroots.Matrix
 		transformMatrix := output.TransformMatrix()
@@ -190,7 +189,7 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 
 	width, height := output.EffectiveResolution()
 	s.renderer.Begin(output, width, height)
-	s.renderer.Clear(wlroots.Color{0.3, 0.3, 0.3, 1.0})
+	s.renderer.Clear(&wlroots.Color{0.3, 0.3, 0.3, 1.0})
 
 	// render all of the views
 	for _, view := range s.views {
@@ -431,19 +430,17 @@ func (s *Server) beginInteractive(view *View, mode CursorMode, edges wlroots.Edg
 	}
 
 	box := view.XDGSurface().Geometry()
-	bX, bY, boxWidth, boxHeight := box.Get()
-
 	if mode == CursorModeMove {
 		s.grabX = s.cursor.X() - view.X
 		s.grabY = s.cursor.Y() - view.Y
 	} else {
-		s.grabX = s.cursor.X() + float64(bX)
-		s.grabY = s.cursor.Y() + float64(bY)
+		s.grabX = s.cursor.X() + float64(box.X)
+		s.grabY = s.cursor.Y() + float64(box.Y)
 	}
 
 	s.grabbedView = view
 	s.cursorMode = mode
-	s.grabWidth = boxWidth
-	s.grabHeight = boxHeight
+	s.grabWidth = box.Width
+	s.grabHeight = box.Height
 	s.resizeEdges = edges
 }

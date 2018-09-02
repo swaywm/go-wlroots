@@ -4,16 +4,28 @@ package wlroots
 import "C"
 
 type Box struct {
-	b C.struct_wlr_box
+	X, Y, Width, Height int
 }
 
 func (b *Box) Set(x, y, width, height int) {
-	b.b.x = C.int(x)
-	b.b.y = C.int(y)
-	b.b.width = C.int(width)
-	b.b.height = C.int(height)
+	b.X = x
+	b.Y = y
+	b.Width = width
+	b.Height = height
 }
 
-func (b *Box) Get() (x, y, width, height int) {
-	return int(b.b.x), int(b.b.y), int(b.b.width), int(b.b.height)
+func (b *Box) toC() C.struct_wlr_box {
+	return C.struct_wlr_box{
+		x:      C.int(b.X),
+		y:      C.int(b.Y),
+		width:  C.int(b.Width),
+		height: C.int(b.Height),
+	}
+}
+
+func (b *Box) fromC(cb *C.struct_wlr_box) {
+	b.X = int(cb.x)
+	b.Y = int(cb.y)
+	b.Width = int(cb.width)
+	b.Height = int(cb.height)
 }
