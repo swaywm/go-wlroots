@@ -35,6 +35,10 @@ type XDGSurface struct {
 	p *C.struct_wlr_xdg_surface
 }
 
+type XDGPopup struct {
+	p *C.struct_wlr_xdg_popup
+}
+
 type XDGSurfaceWalkFunc func(surface Surface, sx int, sy int)
 
 type XDGTopLevel struct {
@@ -114,6 +118,18 @@ func (s XDGSurface) TopLevelSetSize(width uint32, height uint32) {
 	C.wlr_xdg_toplevel_set_size(s.p, C.uint32_t(width), C.uint32_t(height))
 }
 
+func (s XDGSurface) TopLevelSetTiled(edges Edges) {
+	C.wlr_xdg_toplevel_set_tiled(s.p, C.uint32_t(edges))
+}
+
+func (s XDGSurface) SendClose() {
+	C.wlr_xdg_surface_send_close(s.p)
+}
+
+func (s XDGSurface) Ping() {
+	C.wlr_xdg_surface_ping(s.p)
+}
+
 func (s XDGSurface) Surface() Surface {
 	return Surface{p: s.p.surface}
 }
@@ -139,6 +155,19 @@ func (s XDGSurface) OnUnmap(cb func(XDGSurface)) {
 func (s XDGSurface) OnDestroy(cb func(XDGSurface)) {
 	man.add(unsafe.Pointer(s.p), &s.p.events.destroy, func(data unsafe.Pointer) {
 		cb(s)
+	})
+}
+
+func (s XDGSurface) OnPingTimeout(cb func(XDGSurface)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.ping_timeout, func(data unsafe.Pointer) {
+		cb(s)
+	})
+}
+
+func (s XDGSurface) OnNewPopup(cb func(XDGSurface, XDGPopup)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.ping_timeout, func(data unsafe.Pointer) {
+		popup := XDGPopup{p: (*C.struct_wlr_xdg_popup)(data)}
+		cb(s, popup)
 	})
 }
 
