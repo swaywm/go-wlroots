@@ -65,6 +65,9 @@ func (m Keymap) Destroy() {
 func (s State) Syms(keyCode KeyCode) []KeySym {
 	var syms *C.xkb_keysym_t
 	n := int(C.xkb_state_key_get_syms(s.p, C.uint32_t(keyCode), &syms))
+	if n == 0 || syms == nil {
+		return nil
+	}
 	slice := (*[1 << 30]C.xkb_keysym_t)(unsafe.Pointer(syms))[:n:n]
 
 	res := make([]KeySym, n)
