@@ -200,6 +200,7 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 		s.renderView(output, view)
 	}
 
+	output.RenderSoftwareCursors()
 	s.renderer.End()
 	output.SwapBuffers()
 }

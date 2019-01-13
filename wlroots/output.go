@@ -47,6 +47,10 @@ func (o Output) OnFrame(cb func(Output)) {
 	})
 }
 
+func (o Output) RenderSoftwareCursors() {
+	C.wlr_output_render_software_cursors(o.p, nil)
+}
+
 func (o Output) TransformedResolution() (int, int) {
 	var width, height C.int
 	C.wlr_output_transformed_resolution(o.p, &width, &height)
