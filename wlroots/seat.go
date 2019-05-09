@@ -21,6 +21,14 @@ type SeatPointerState struct {
 	s C.struct_wlr_seat_pointer_state
 }
 
+type ButtonState struct {
+	e C.enum_wlr_button_state
+}
+
+func (b ButtonState) State() uint32 {
+	return uint32(b.e);
+}
+
 type SeatCapability uint32
 
 const (
@@ -65,7 +73,7 @@ func (s Seat) SetKeyboard(dev InputDevice) {
 }
 
 func (s Seat) NotifyPointerButton(time uint32, button uint32, state ButtonState) {
-	C.wlr_seat_pointer_notify_button(s.p, C.uint32_t(time), C.uint32_t(button), C.uint32_t(state))
+	C.wlr_seat_pointer_notify_button(s.p, C.uint32_t(time), C.uint32_t(button), state.e)
 }
 
 func (s Seat) NotifyPointerAxis(time uint32, orientation AxisOrientation, delta float64, deltaDiscrete int32, source AxisSource) {

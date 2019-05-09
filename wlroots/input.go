@@ -9,7 +9,6 @@ import (
 
 type (
 	InputDeviceType uint32
-	ButtonState     uint32
 	AxisSource      uint32
 	AxisOrientation uint32
 )
@@ -21,8 +20,8 @@ const (
 	InputDeviceTypeTabletTool InputDeviceType = C.WLR_INPUT_DEVICE_TABLET_TOOL
 	InputDeviceTypeTabletPad  InputDeviceType = C.WLR_INPUT_DEVICE_TABLET_PAD
 
-	ButtonStateReleased ButtonState = C.WLR_BUTTON_RELEASED
-	ButtonStatePressed  ButtonState = C.WLR_BUTTON_PRESSED
+	ButtonStateReleased  uint32 = C.WLR_BUTTON_RELEASED
+	ButtonStatePressed   uint32 = C.WLR_BUTTON_PRESSED
 
 	AxisSourceWheel      AxisSource = C.WLR_AXIS_SOURCE_WHEEL
 	AxisSourceFinger     AxisSource = C.WLR_AXIS_SOURCE_FINGER

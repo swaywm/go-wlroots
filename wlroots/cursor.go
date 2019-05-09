@@ -66,7 +66,7 @@ func (c Cursor) OnButton(cb func(dev InputDevice, time uint32, button uint32, st
 	man.add(unsafe.Pointer(c.p), &c.p.events.button, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_event_pointer_button)(data)
 		dev := InputDevice{p: event.device}
-		cb(dev, uint32(event.time_msec), uint32(event.button), ButtonState(event.state))
+		cb(dev, uint32(event.time_msec), uint32(event.button), ButtonState{event.state})
 	})
 }
 

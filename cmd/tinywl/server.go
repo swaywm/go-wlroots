@@ -384,7 +384,7 @@ func (s *Server) handleNewXDGSurface(surface wlroots.XDGSurface) {
 func (s *Server) handleCursorButton(dev wlroots.InputDevice, time uint32, button uint32, state wlroots.ButtonState) {
 	s.seat.NotifyPointerButton(time, button, state)
 
-	if state == wlroots.ButtonStateReleased {
+	if state.State() == wlroots.ButtonStateReleased {
 		s.cursorMode = CursorModePassThrough
 	} else {
 		view, surface, _, _ := s.viewAt(s.cursor.X(), s.cursor.Y())

@@ -123,7 +123,7 @@ func (s XDGSurface) TopLevelSetTiled(edges Edges) {
 }
 
 func (s XDGSurface) SendClose() {
-	C.wlr_xdg_surface_send_close(s.p)
+	C.wlr_xdg_toplevel_send_close(s.p)
 }
 
 func (s XDGSurface) Ping() {

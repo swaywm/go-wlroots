@@ -63,8 +63,10 @@ func (o Output) EffectiveResolution() (int, int) {
 	return int(width), int(height)
 }
 
+//TODO rename to AttachRender for wlroots 0.6.0
 func (o Output) MakeCurrent() (int, error) {
 	var bufferAge C.int
+	//TODO use C.wlr_output_attach_render(o.p, &bufferAge) for wlroots 0.6.0
 	if !C.wlr_output_make_current(o.p, &bufferAge) {
 		return 0, errors.New("can't make output context current")
 	}
@@ -80,7 +82,9 @@ func (o Output) DestroyGlobal() {
 	C.wlr_output_destroy_global(o.p)
 }
 
+//TODO rename to Commit() for wlroots 0.6.0
 func (o Output) SwapBuffers() {
+	//TODO use C.wlr_output_commit(o.p) for wlroots 0.6.0
 	C.wlr_output_swap_buffers(o.p, nil, nil)
 }
 
