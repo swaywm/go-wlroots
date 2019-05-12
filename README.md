@@ -7,7 +7,7 @@ subject to change.
 To test go-wlroots I've ported [SirCmpwn's Tiny Wayland
 compositor](https://gist.github.com/ddevault/ae4d1cdcca97ffeb2c35f0878d75dc17) to it:
 
-![](https://alexbakker.me/u/a6v2nu16.png)
+![](https://alexbakker.me/u/ys7ucs0dcw.png)
 
 The source of tinywl can be found in [cmd/tinywl](cmd/tinywl).
 
