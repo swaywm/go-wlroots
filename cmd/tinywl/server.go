@@ -186,7 +186,7 @@ func (s *Server) focusView(view *View, surface wlroots.Surface) {
 }
 
 func (s *Server) handleNewFrame(output wlroots.Output) {
-	output.MakeCurrent()
+	output.AttachRender()
 
 	width, height := output.EffectiveResolution()
 	s.renderer.Begin(output, width, height)
@@ -203,7 +203,7 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 
 	output.RenderSoftwareCursors()
 	s.renderer.End()
-	output.SwapBuffers()
+	output.Commit()
 }
 
 func (s *Server) handleNewOutput(output wlroots.Output) {
