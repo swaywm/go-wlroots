@@ -1,7 +1,5 @@
 package wlroots
 
-// #define _GNU_SOURCE
-//
 // #include <stdarg.h>
 // #include <stdio.h>
 // #include <stdlib.h>
@@ -33,7 +31,9 @@ package wlroots
 //
 // static inline void _wlr_log_inner_cb(enum wlr_log_importance importance, const char *fmt, va_list args) {
 //		char *msg = NULL;
-//		vasprintf(&msg, fmt, args);
+//		if (vasprintf(&msg, fmt, args) == -1) {
+//			return;
+//		}
 //
 //		_wlr_log_cb(importance, msg);
 //		free(msg);
@@ -56,7 +56,7 @@ package wlroots
 // }
 //
 // #cgo pkg-config: wlroots wayland-server
-// #cgo CFLAGS: -DWLR_USE_UNSTABLE
+// #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 import "C"
 
 import (
