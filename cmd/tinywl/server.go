@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -216,6 +217,7 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	s.layout.AddOutputAuto(output)
 	output.OnFrame(s.handleNewFrame)
 	output.CreateGlobal()
+	output.SetTitle(fmt.Sprintf("tinywl (wlroots) - %s", output.Name()))
 }
 
 func (s *Server) handleCursorMotion(dev wlroots.InputDevice, time uint32, dx float64, dy float64) {

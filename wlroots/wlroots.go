@@ -6,6 +6,8 @@ package wlroots
 // #include <time.h>
 // #include <wayland-server.h>
 // #include <wlr/backend.h>
+// #include <wlr/backend/wayland.h>
+// #include <wlr/backend/x11.h>
 // #include <wlr/render/wlr_renderer.h>
 // #include <wlr/render/wlr_texture.h>
 // #include <wlr/types/wlr_box.h>
@@ -766,6 +768,18 @@ func (o Output) Modes() []OutputMode {
 
 func (o Output) SetMode(mode OutputMode) {
 	C.wlr_output_set_mode(o.p, mode.p)
+}
+
+func (o Output) SetTitle(title string) error {
+	if C.wlr_output_is_wl(o.p) {
+		C.wlr_wl_output_set_title(o.p, C.CString(title))
+	} else if C.wlr_output_is_x11(o.p) {
+		C.wlr_x11_output_set_title(o.p, C.CString(title))
+	} else {
+		return errors.New("this output type cannot have a title")
+	}
+
+	return nil
 }
 
 type OutputLayout struct {
