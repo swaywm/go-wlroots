@@ -75,6 +75,7 @@ func NewServer() (*Server, error) {
 	s.cursor.OnMotionAbsolute(s.handleCursorMotionAbsolute)
 	s.cursor.OnButton(s.handleCursorButton)
 	s.cursor.OnAxis(s.handleCursorAxis)
+	s.cursor.OnFrame(s.handleCursorFrame)
 	s.cursor.AttachOutputLayout(s.layout)
 	s.cursorMgr = wlroots.NewXCursorManager()
 	s.cursorMgr.Load()
@@ -396,6 +397,10 @@ func (s *Server) handleCursorButton(dev wlroots.InputDevice, time uint32, button
 
 func (s *Server) handleCursorAxis(dev wlroots.InputDevice, time uint32, source wlroots.AxisSource, orientation wlroots.AxisOrientation, delta float64, deltaDiscrete int32) {
 	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source)
+}
+
+func (s *Server) handleCursorFrame() {
+	s.seat.NotifyPointerFrame()
 }
 
 func (s *Server) handleKeyBinding(sym xkb.KeySym) bool {

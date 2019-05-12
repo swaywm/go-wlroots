@@ -77,3 +77,9 @@ func (c Cursor) OnAxis(cb func(dev InputDevice, time uint32, source AxisSource, 
 		cb(dev, uint32(event.time_msec), AxisSource(event.source), AxisOrientation(event.orientation), float64(event.delta), int32(event.delta_discrete))
 	})
 }
+
+func (c Cursor) OnFrame(cb func()) {
+	man.add(unsafe.Pointer(c.p), &c.p.events.frame, func(data unsafe.Pointer) {
+		cb()
+	})
+}
