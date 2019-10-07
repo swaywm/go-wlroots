@@ -751,7 +751,7 @@ func (o Output) DestroyGlobal() {
 }
 
 func (o Output) Commit() {
-	C.wlr_output_commit(o.p, nil, nil)
+	C.wlr_output_commit(o.p)
 }
 
 func (o Output) Modes() []OutputMode {
@@ -808,10 +808,6 @@ func (l OutputLayout) Coords(output Output) (x float64, y float64) {
 
 func OutputTransformInvert(transform uint32) uint32 {
 	return uint32(C.wlr_output_transform_invert(C.enum_wl_output_transform(transform)))
-}
-
-func (m OutputMode) Flags() uint32 {
-	return uint32(m.p.flags)
 }
 
 func (m OutputMode) Width() int32 {
