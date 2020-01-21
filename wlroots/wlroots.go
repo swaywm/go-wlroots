@@ -199,10 +199,6 @@ func NewXDGShell(display Display) XDGShell {
 	return XDGShell{p: p}
 }
 
-func (s XDGShell) Destroy() {
-	C.wlr_xdg_shell_destroy(s.p)
-}
-
 func (s XDGShell) OnDestroy(cb func(XDGShell)) {
 	man.add(unsafe.Pointer(s.p), &s.p.events.destroy, func(unsafe.Pointer) {
 		cb(s)
@@ -742,6 +738,10 @@ func (o Output) AttachRender() (int, error) {
 	return int(bufferAge), nil
 }
 
+func (o Output) Rollback() {
+	C.wlr_output_rollback(o.p)
+}
+
 func (o Output) CreateGlobal() {
 	C.wlr_output_create_global(o.p)
 }
@@ -768,6 +768,10 @@ func (o Output) Modes() []OutputMode {
 
 func (o Output) SetMode(mode OutputMode) {
 	C.wlr_output_set_mode(o.p, mode.p)
+}
+
+func (o Output) Enable(enable bool) {
+	C.wlr_output_enable(o.p, C.bool(enable))
 }
 
 func (o Output) SetTitle(title string) error {
@@ -989,10 +993,6 @@ func NewDMABuf(display Display, renderer Renderer) DMABuf {
 	return DMABuf{p: p}
 }
 
-func (b DMABuf) Destroy() {
-	C.wlr_linux_dmabuf_v1_destroy(b.p)
-}
-
 func (b DMABuf) OnDestroy(cb func(DMABuf)) {
 	man.add(unsafe.Pointer(b.p), &b.p.events.destroy, func(unsafe.Pointer) {
 		cb(b)
@@ -1062,10 +1062,6 @@ func NewServerDecorationManager(display Display) ServerDecorationManager {
 	return ServerDecorationManager{p: p}
 }
 
-func (m ServerDecorationManager) Destroy() {
-	C.wlr_server_decoration_manager_destroy(m.p)
-}
-
 func (m ServerDecorationManager) OnDestroy(cb func(ServerDecorationManager)) {
 	man.add(unsafe.Pointer(m.p), &m.p.events.destroy, func(unsafe.Pointer) {
 		cb(m)
@@ -1110,10 +1106,6 @@ func NewDataDeviceManager(display Display) DataDeviceManager {
 	p := C.wlr_data_device_manager_create(display.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return DataDeviceManager{p: p}
-}
-
-func (m DataDeviceManager) Destroy() {
-	C.wlr_data_device_manager_destroy(m.p)
 }
 
 func (m DataDeviceManager) OnDestroy(cb func(DataDeviceManager)) {
@@ -1210,10 +1202,6 @@ func NewCompositor(display Display, renderer Renderer) Compositor {
 	p := C.wlr_compositor_create(display.p, renderer.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Compositor{p: p}
-}
-
-func (c Compositor) Destroy() {
-	C.wlr_compositor_destroy(c.p)
 }
 
 func (c Compositor) OnDestroy(cb func(Compositor)) {
