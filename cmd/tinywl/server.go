@@ -304,19 +304,18 @@ func (s *Server) handleSetCursorRequest(client wlroots.SeatClient, surface wlroo
 }
 
 func (s *Server) handleNewInput(dev wlroots.InputDevice) {
-	switch dev.Type() {
-	case wlroots.InputDeviceTypePointer:
+	switch dev := dev.(type) {
+	case wlroots.Pointer:
 		s.cursor.AttachInputDevice(dev)
-	case wlroots.InputDeviceTypeKeyboard:
+	case wlroots.Keyboard:
 		context := xkb.NewContext()
 		keymap := context.Map()
-		keyboard := dev.Keyboard()
-		keyboard.SetKeymap(keymap)
+		dev.SetKeymap(keymap)
 		keymap.Destroy()
 		context.Destroy()
-		keyboard.SetRepeatInfo(25, 600)
+		dev.SetRepeatInfo(25, 600)
 
-		keyboard.OnKey(func(keyboard wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
+		dev.OnKey(func(keyboard wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
 			// translate libinput keycode to xkbcommon and obtain keysyms
 			syms := keyboard.XKBState().Syms(xkb.KeyCode(keyCode + 8))
 
@@ -329,13 +328,13 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 			}
 
 			if !handled {
-				s.seat.SetKeyboard(dev)
+				s.seat.SetKeyboard(keyboard)
 				s.seat.NotifyKeyboardKey(time, keyCode, state)
 			}
 		})
 
-		keyboard.OnModifiers(func(keyboard wlroots.Keyboard) {
-			s.seat.SetKeyboard(dev)
+		dev.OnModifiers(func(keyboard wlroots.Keyboard) {
+			s.seat.SetKeyboard(keyboard)
 			s.seat.NotifyKeyboardModifiers(keyboard)
 		})
 

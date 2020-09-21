@@ -563,8 +563,8 @@ func (s Seat) SetCapabilities(caps SeatCapability) {
 	C.wlr_seat_set_capabilities(s.p, C.uint32_t(caps))
 }
 
-func (s Seat) SetKeyboard(dev InputDevice) {
-	C.wlr_seat_set_keyboard(s.p, dev.p)
+func (s Seat) SetKeyboard(dev Keyboard) {
+	C.wlr_seat_set_keyboard(s.p, dev.inputDevice.p)
 }
 
 func (s Seat) NotifyPointerButton(time uint32, button uint32, state ButtonState) {
@@ -893,7 +893,13 @@ const (
 	KeyboardModifierMod5  KeyboardModifier = C.WLR_MODIFIER_MOD5
 )
 
+type Pointer struct {
+	inputDevice
+	p *C.struct_wlr_pointer
+}
+
 type Keyboard struct {
+	inputDevice
 	p *C.struct_wlr_keyboard
 }
 
@@ -956,27 +962,62 @@ const (
 	AxisOrientationHorizontal AxisOrientation = C.WLR_AXIS_ORIENTATION_HORIZONTAL
 )
 
-type InputDevice struct {
+type InputDevice interface {
+	Type() InputDeviceType
+	OnDestroy(cb func(InputDevice))
+	ptr() *C.struct_wlr_input_device
+}
+
+type inputDevice struct {
 	p *C.struct_wlr_input_device
 }
 
-func (d InputDevice) OnDestroy(cb func(InputDevice)) {
+func (d inputDevice) OnDestroy(cb func(InputDevice)) {
 	man.add(unsafe.Pointer(d.p), &d.p.events.destroy, func(unsafe.Pointer) {
-		cb(d)
+		cb(wrapInputDevice(d))
 	})
 }
 
-func (d InputDevice) Type() InputDeviceType {
+func (d inputDevice) Type() InputDeviceType {
 	return InputDeviceType(d.p._type)
 }
 
-func (d InputDevice) Keyboard() Keyboard {
-	p := *(*unsafe.Pointer)(unsafe.Pointer(&d.p.anon0[0]))
-	return Keyboard{p: (*C.struct_wlr_keyboard)(p)}
+func (d inputDevice) ptr() *C.struct_wlr_input_device {
+	return d.p
 }
 
-func wrapInputDevice(p unsafe.Pointer) InputDevice {
-	return InputDevice{p: (*C.struct_wlr_input_device)(p)}
+func wrapInputDevice(input inputDevice) InputDevice {
+	switch input.Type() {
+	case InputDeviceTypeKeyboard:
+		p := *(**C.struct_wlr_keyboard)(unsafe.Pointer(&input.p.anon0[0]))
+		return Keyboard{
+			inputDevice: input,
+			p:           p,
+		}
+	case InputDeviceTypePointer:
+		p := *(**C.struct_wlr_pointer)(unsafe.Pointer(&input.p.anon0[0]))
+		return Pointer{
+			inputDevice: input,
+			p:           p,
+		}
+	case InputDeviceTypeTouch:
+		// not implemented
+		return input
+	case InputDeviceTypeTabletTool:
+		// not implemented
+		return input
+	case InputDeviceTypeTabletPad:
+		// not implemented
+		return input
+	default:
+		// unknown device type
+		return input
+	}
+}
+
+func wrapInputDevicePtr(p *C.struct_wlr_input_device) InputDevice {
+	input := inputDevice{p: (*C.struct_wlr_input_device)(p)}
+	return wrapInputDevice(input)
 }
 
 type DMABuf struct {
@@ -1137,15 +1178,15 @@ func (c Cursor) AttachOutputLayout(layout OutputLayout) {
 }
 
 func (c Cursor) AttachInputDevice(dev InputDevice) {
-	C.wlr_cursor_attach_input_device(c.p, dev.p)
+	C.wlr_cursor_attach_input_device(c.p, dev.ptr())
 }
 
 func (c Cursor) Move(dev InputDevice, dx float64, dy float64) {
-	C.wlr_cursor_move(c.p, dev.p, C.double(dx), C.double(dy))
+	C.wlr_cursor_move(c.p, dev.ptr(), C.double(dx), C.double(dy))
 }
 
 func (c Cursor) WarpAbsolute(dev InputDevice, x float64, y float64) {
-	C.wlr_cursor_warp_absolute(c.p, dev.p, C.double(x), C.double(y))
+	C.wlr_cursor_warp_absolute(c.p, dev.ptr(), C.double(x), C.double(y))
 }
 
 func (c Cursor) SetSurface(surface Surface, hotspotX int32, hotspotY int32) {
@@ -1155,7 +1196,7 @@ func (c Cursor) SetSurface(surface Surface, hotspotX int32, hotspotY int32) {
 func (c Cursor) OnMotion(cb func(dev InputDevice, time uint32, dx float64, dy float64)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.motion, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_event_pointer_motion)(data)
-		dev := InputDevice{p: event.device}
+		dev := wrapInputDevicePtr(event.device)
 		cb(dev, uint32(event.time_msec), float64(event.delta_x), float64(event.delta_y))
 	})
 }
@@ -1163,7 +1204,7 @@ func (c Cursor) OnMotion(cb func(dev InputDevice, time uint32, dx float64, dy fl
 func (c Cursor) OnMotionAbsolute(cb func(dev InputDevice, time uint32, x float64, y float64)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.motion_absolute, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_event_pointer_motion_absolute)(data)
-		dev := InputDevice{p: event.device}
+		dev := wrapInputDevicePtr(event.device)
 		cb(dev, uint32(event.time_msec), float64(event.x), float64(event.y))
 	})
 }
@@ -1171,7 +1212,7 @@ func (c Cursor) OnMotionAbsolute(cb func(dev InputDevice, time uint32, x float64
 func (c Cursor) OnButton(cb func(dev InputDevice, time uint32, button uint32, state ButtonState)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.button, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_event_pointer_button)(data)
-		dev := InputDevice{p: event.device}
+		dev := wrapInputDevicePtr(event.device)
 		cb(dev, uint32(event.time_msec), uint32(event.button), ButtonState(event.state))
 	})
 }
@@ -1179,7 +1220,7 @@ func (c Cursor) OnButton(cb func(dev InputDevice, time uint32, button uint32, st
 func (c Cursor) OnAxis(cb func(dev InputDevice, time uint32, source AxisSource, orientation AxisOrientation, delta float64, deltaDiscrete int32)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.axis, func(data unsafe.Pointer) {
 		event := (*C.struct_wlr_event_pointer_axis)(data)
-		dev := InputDevice{p: event.device}
+		dev := wrapInputDevicePtr(event.device)
 		cb(dev, uint32(event.time_msec), AxisSource(event.source), AxisOrientation(event.orientation), float64(event.delta), int32(event.delta_discrete))
 	})
 }
@@ -1291,12 +1332,12 @@ func (b Backend) OnNewOutput(cb func(Output)) {
 
 func (b Backend) OnNewInput(cb func(InputDevice)) {
 	man.add(unsafe.Pointer(b.p), &b.p.events.new_input, func(data unsafe.Pointer) {
-		dev := wrapInputDevice(data)
-		man.add(unsafe.Pointer(dev.p), &dev.p.events.destroy, func(data unsafe.Pointer) {
+		dev := wrapInputDevicePtr((*C.struct_wlr_input_device)(data))
+		man.add(unsafe.Pointer(dev.ptr()), &dev.ptr().events.destroy, func(data unsafe.Pointer) {
 			// delete the underlying device type first
-			man.delete(*(*unsafe.Pointer)(unsafe.Pointer(&dev.p.anon0[0])))
+			man.delete(*(*unsafe.Pointer)(unsafe.Pointer(&dev.ptr().anon0[0])))
 			// then delete the wlr_input_device itself
-			man.delete(unsafe.Pointer(dev.p))
+			man.delete(unsafe.Pointer(dev.ptr()))
 		})
 		cb(dev)
 	})
