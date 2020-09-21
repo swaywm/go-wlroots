@@ -87,10 +87,6 @@ func (x XWayland) Destroy() {
 	C.wlr_xwayland_destroy(x.p)
 }
 
-func (x XWayland) Display() int {
-	return int(x.p.display)
-}
-
 func (x XWayland) OnNewSurface(cb func(XWaylandSurface)) {
 	man.add(unsafe.Pointer(x.p), &x.p.events.new_surface, func(data unsafe.Pointer) {
 		surface := XWaylandSurface{p: (*C.struct_wlr_xwayland_surface)(data)}
