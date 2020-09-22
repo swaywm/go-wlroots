@@ -63,6 +63,7 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 	"unsafe"
@@ -937,6 +938,14 @@ type (
 	AxisOrientation uint32
 )
 
+var inputDeviceNames = []string{
+	InputDeviceTypeKeyboard:   "keyboard",
+	InputDeviceTypePointer:    "pointer",
+	InputDeviceTypeTouch:      "touch",
+	InputDeviceTypeTabletTool: "tablet tool",
+	InputDeviceTypeTabletPad:  "tablet pad",
+}
+
 const (
 	InputDeviceTypeKeyboard   InputDeviceType = C.WLR_INPUT_DEVICE_KEYBOARD
 	InputDeviceTypePointer    InputDeviceType = C.WLR_INPUT_DEVICE_POINTER
@@ -970,7 +979,18 @@ func (d InputDevice) Type() InputDeviceType {
 	return InputDeviceType(d.p._type)
 }
 
+func validateInputDeviceType(d InputDevice, fn string, req InputDeviceType) {
+	if typ := d.Type(); typ != req {
+		if int(typ) >= len(inputDeviceNames) {
+			panic(fmt.Sprintf("%s called on input device of type %d", fn, typ))
+		} else {
+			panic(fmt.Sprintf("%s called on input device of type %s", fn, inputDeviceNames[typ]))
+		}
+	}
+}
+
 func (d InputDevice) Keyboard() Keyboard {
+	validateInputDeviceType(d, "Keyboard", InputDeviceTypeKeyboard)
 	p := *(*unsafe.Pointer)(unsafe.Pointer(&d.p.anon0[0]))
 	return Keyboard{p: (*C.struct_wlr_keyboard)(p)}
 }
