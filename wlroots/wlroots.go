@@ -975,9 +975,13 @@ func (d InputDevice) OnDestroy(cb func(InputDevice)) {
 	})
 }
 
-func (d InputDevice) Type() InputDeviceType {
-	return InputDeviceType(d.p._type)
-}
+func (d InputDevice) Type() InputDeviceType { return InputDeviceType(d.p._type) }
+func (d InputDevice) Vendor() int           { return int(d.p.vendor) }
+func (d InputDevice) Product() int          { return int(d.p.product) }
+func (d InputDevice) Name() string          { return C.GoString(d.p.name) }
+func (d InputDevice) Width() float64        { return float64(d.p.width_mm) }
+func (d InputDevice) Height() float64       { return float64(d.p.height_mm) }
+func (d InputDevice) OutputName() string    { return C.GoString(d.p.output_name) }
 
 func validateInputDeviceType(d InputDevice, fn string, req InputDeviceType) {
 	if typ := d.Type(); typ != req {
