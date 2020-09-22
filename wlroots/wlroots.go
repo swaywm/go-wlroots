@@ -69,6 +69,8 @@ import (
 	"unsafe"
 
 	"github.com/swaywm/go-wlroots/xkb"
+
+	"golang.org/x/sys/unix"
 )
 
 type XWayland struct {
@@ -483,8 +485,11 @@ func (s Surface) Walk(visit func()) {
 }
 
 func (s Surface) SendFrameDone(when time.Time) {
-	t := C.struct_timespec{}
-	C.wlr_surface_send_frame_done(s.p, &t)
+	// we ignore the returned error; the only possible error is
+	// ERANGE, when timespec on a platform has int32 precision, but
+	// our time requires 64 bits. This should not occur.
+	t, _ := unix.TimeToTimespec(when)
+	C.wlr_surface_send_frame_done(s.p, (*C.struct_timespec)(unsafe.Pointer(&t)))
 }
 
 func (s Surface) XDGSurface() XDGSurface {
