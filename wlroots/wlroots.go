@@ -1024,6 +1024,31 @@ func (b DMABuf) OnDestroy(cb func(DMABuf)) {
 	})
 }
 
+type EventLoop struct {
+	p *C.struct_wl_event_loop
+}
+
+func (evl EventLoop) OnDestroy(cb func(EventLoop)) {
+	l := man.add(unsafe.Pointer(evl.p), nil, func(data unsafe.Pointer) {
+		cb(evl)
+	})
+	C.wl_event_loop_add_destroy_listener(evl.p, l.p)
+}
+
+func (evl EventLoop) Fd() uintptr {
+	return uintptr(C.wl_event_loop_get_fd(evl.p))
+}
+
+func (evl EventLoop) Dispatch(timeout time.Duration) {
+	var d int
+	if timeout >= 0 {
+		d = int(timeout / time.Millisecond)
+	} else {
+		d = -1
+	}
+	C.wl_event_loop_dispatch(evl.p, C.int(d))
+}
+
 type Display struct {
 	p *C.struct_wl_display
 }
@@ -1056,6 +1081,15 @@ func (d Display) Terminate() {
 	C.wl_display_terminate(d.p)
 }
 
+func (d Display) EventLoop() EventLoop {
+	p := C.wl_display_get_event_loop(d.p)
+	evl := EventLoop{p: p}
+	evl.OnDestroy(func(EventLoop) {
+		man.delete(unsafe.Pointer(p))
+	})
+	return evl
+}
+
 func (d Display) AddSocketAuto() (string, error) {
 	socket := C.wl_display_add_socket_auto(d.p)
 	if socket == nil {
@@ -1063,6 +1097,10 @@ func (d Display) AddSocketAuto() (string, error) {
 	}
 
 	return C.GoString(socket), nil
+}
+
+func (d Display) FlushClients() {
+	C.wl_display_flush_clients(d.p)
 }
 
 type ServerDecorationManagerMode uint32
