@@ -18,16 +18,16 @@ const (
 )
 
 type Server struct {
-	display    wlroots.Display
-	backend    wlroots.Backend
-	renderer   wlroots.Renderer
-	layout     wlroots.OutputLayout
-	cursor     wlroots.Cursor
-	cursorMgr  wlroots.XCursorManager
-	compositor wlroots.Compositor
-	dataDevMgr wlroots.DataDeviceManager
-	seat       wlroots.Seat
-	xdgShell   wlroots.XDGShell
+	display    *wlroots.Display
+	backend    *wlroots.Backend
+	renderer   *wlroots.Renderer
+	layout     *wlroots.OutputLayout
+	cursor     *wlroots.Cursor
+	cursorMgr  *wlroots.XCursorManager
+	compositor *wlroots.Compositor
+	dataDevMgr *wlroots.DataDeviceManager
+	seat       *wlroots.Seat
+	xdgShell   *wlroots.XDGShell
 
 	views     []*View
 	keyboards []*Keyboard
@@ -42,7 +42,7 @@ type Server struct {
 }
 
 type Keyboard struct {
-	dev wlroots.InputDevice
+	dev *wlroots.InputDevice
 }
 
 func NewServer() (*Server, error) {
@@ -116,22 +116,22 @@ func (s *Server) Run() error {
 	return nil
 }
 
-func (s *Server) viewAt(lx float64, ly float64) (*View, wlroots.Surface, float64, float64) {
+func (s *Server) viewAt(lx float64, ly float64) (*View, *wlroots.Surface, float64, float64) {
 	for i := len(s.views) - 1; i >= 0; i-- {
 		view := s.views[i]
 		surface, sx, sy := view.XDGSurface().SurfaceAt(lx-view.X, ly-view.Y)
-		if !surface.Nil() {
+		if surface != nil {
 			return view, surface, sx, sy
 		}
 	}
 
-	return nil, wlroots.Surface{}, 0, 0
+	return nil, nil, 0, 0
 }
 
-func (s *Server) renderView(output wlroots.Output, view *View) {
-	view.XDGSurface().Walk(func(surface wlroots.Surface, sx int, sy int) {
+func (s *Server) renderView(output *wlroots.Output, view *View) {
+	view.XDGSurface().Walk(func(surface *wlroots.Surface, sx int, sy int) {
 		texture := surface.Texture()
-		if texture.Nil() {
+		if texture == nil {
 			return
 		}
 
@@ -160,14 +160,14 @@ func (s *Server) renderView(output wlroots.Output, view *View) {
 	})
 }
 
-func (s *Server) focusView(view *View, surface wlroots.Surface) {
+func (s *Server) focusView(view *View, surface *wlroots.Surface) {
 	prevSurface := s.seat.KeyboardState().FocusedSurface()
 	if prevSurface == surface {
 		// don't re-focus an already focused surface
 		return
 	}
 
-	if !prevSurface.Nil() {
+	if prevSurface != nil {
 		// deactivate the previously focused surface
 		prev := prevSurface.XDGSurface()
 		prev.TopLevelSetActivated(false)
@@ -186,7 +186,7 @@ func (s *Server) focusView(view *View, surface wlroots.Surface) {
 	s.seat.NotifyKeyboardEnter(view.Surface(), s.seat.Keyboard())
 }
 
-func (s *Server) handleNewFrame(output wlroots.Output) {
+func (s *Server) handleNewFrame(output *wlroots.Output) {
 	output.AttachRender()
 
 	width, height := output.EffectiveResolution()
@@ -207,7 +207,7 @@ func (s *Server) handleNewFrame(output wlroots.Output) {
 	output.Commit()
 }
 
-func (s *Server) handleNewOutput(output wlroots.Output) {
+func (s *Server) handleNewOutput(output *wlroots.Output) {
 	// TODO: pick the preferred mode instead of the first one
 	modes := output.Modes()
 	if len(modes) > 0 {
@@ -220,12 +220,12 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	output.SetTitle(fmt.Sprintf("tinywl (wlroots) - %s", output.Name()))
 }
 
-func (s *Server) handleCursorMotion(dev wlroots.InputDevice, time uint32, dx float64, dy float64) {
+func (s *Server) handleCursorMotion(dev *wlroots.InputDevice, time uint32, dx float64, dy float64) {
 	s.cursor.Move(dev, dx, dy)
 	s.processCursorMotion(time)
 }
 
-func (s *Server) handleCursorMotionAbsolute(dev wlroots.InputDevice, time uint32, x float64, y float64) {
+func (s *Server) handleCursorMotionAbsolute(dev *wlroots.InputDevice, time uint32, x float64, y float64) {
 	s.cursor.WarpAbsolute(dev, x, y)
 	s.processCursorMotion(time)
 }
@@ -247,7 +247,7 @@ func (s *Server) processCursorMotion(time uint32) {
 		s.cursorMgr.SetCursorImage(s.cursor, "left_ptr")
 	}
 
-	if !surface.Nil() {
+	if surface != nil {
 		s.seat.NotifyPointerEnter(surface, sx, sy)
 		if s.seat.PointerState().FocusedSurface() == surface {
 			// we only need to notify on motion if the focus didn't change
@@ -296,14 +296,14 @@ func (s *Server) processCursorResize(time uint32) {
 	s.grabbedView.XDGSurface().TopLevelSetSize(uint32(width), uint32(height))
 }
 
-func (s *Server) handleSetCursorRequest(client wlroots.SeatClient, surface wlroots.Surface, serial uint32, hotspotX int32, hotspotY int32) {
+func (s *Server) handleSetCursorRequest(client *wlroots.SeatClient, surface *wlroots.Surface, serial uint32, hotspotX int32, hotspotY int32) {
 	focusedClient := s.seat.PointerState().FocusedClient()
 	if focusedClient == client {
 		s.cursor.SetSurface(surface, hotspotX, hotspotY)
 	}
 }
 
-func (s *Server) handleNewInput(dev wlroots.InputDevice) {
+func (s *Server) handleNewInput(dev *wlroots.InputDevice) {
 	switch dev.Type() {
 	case wlroots.InputDeviceTypePointer:
 		s.cursor.AttachInputDevice(dev)
@@ -316,7 +316,7 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 		context.Destroy()
 		keyboard.SetRepeatInfo(25, 600)
 
-		keyboard.OnKey(func(keyboard wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
+		keyboard.OnKey(func(keyboard *wlroots.Keyboard, time uint32, keyCode uint32, updateState bool, state wlroots.KeyState) {
 			// translate libinput keycode to xkbcommon and obtain keysyms
 			syms := keyboard.XKBState().Syms(xkb.KeyCode(keyCode + 8))
 
@@ -334,7 +334,7 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 			}
 		})
 
-		keyboard.OnModifiers(func(keyboard wlroots.Keyboard) {
+		keyboard.OnModifiers(func(keyboard *wlroots.Keyboard) {
 			s.seat.SetKeyboard(dev)
 			s.seat.NotifyKeyboardModifiers(keyboard)
 		})
@@ -350,20 +350,20 @@ func (s *Server) handleNewInput(dev wlroots.InputDevice) {
 	s.seat.SetCapabilities(caps)
 }
 
-func (s *Server) handleNewXDGSurface(surface wlroots.XDGSurface) {
+func (s *Server) handleNewXDGSurface(surface *wlroots.XDGSurface) {
 	if surface.Role() != wlroots.XDGSurfaceRoleTopLevel {
 		return
 	}
 
 	view := NewView(surface)
-	surface.OnMap(func(surface wlroots.XDGSurface) {
+	surface.OnMap(func(surface *wlroots.XDGSurface) {
 		view.Mapped = true
 		s.focusView(view, surface.Surface())
 	})
-	surface.OnUnmap(func(surface wlroots.XDGSurface) {
+	surface.OnUnmap(func(surface *wlroots.XDGSurface) {
 		view.Mapped = false
 	})
-	surface.OnDestroy(func(surface wlroots.XDGSurface) {
+	surface.OnDestroy(func(surface *wlroots.XDGSurface) {
 		// TODO: keep track of views some other way
 		for i := range s.views {
 			if s.views[i] == view {
@@ -374,17 +374,17 @@ func (s *Server) handleNewXDGSurface(surface wlroots.XDGSurface) {
 	})
 
 	toplevel := surface.TopLevel()
-	toplevel.OnRequestMove(func(client wlroots.SeatClient, serial uint32) {
+	toplevel.OnRequestMove(func(client *wlroots.SeatClient, serial uint32) {
 		s.beginInteractive(view, CursorModeMove, 0)
 	})
-	toplevel.OnRequestResize(func(client wlroots.SeatClient, serial uint32, edges wlroots.Edges) {
+	toplevel.OnRequestResize(func(client *wlroots.SeatClient, serial uint32, edges wlroots.Edges) {
 		s.beginInteractive(view, CursorModeResize, edges)
 	})
 
 	s.views = append(s.views, view)
 }
 
-func (s *Server) handleCursorButton(dev wlroots.InputDevice, time uint32, button uint32, state wlroots.ButtonState) {
+func (s *Server) handleCursorButton(dev *wlroots.InputDevice, time uint32, button uint32, state wlroots.ButtonState) {
 	s.seat.NotifyPointerButton(time, button, state)
 
 	if state == wlroots.ButtonStateReleased {
@@ -397,7 +397,7 @@ func (s *Server) handleCursorButton(dev wlroots.InputDevice, time uint32, button
 	}
 }
 
-func (s *Server) handleCursorAxis(dev wlroots.InputDevice, time uint32, source wlroots.AxisSource, orientation wlroots.AxisOrientation, delta float64, deltaDiscrete int32) {
+func (s *Server) handleCursorAxis(dev *wlroots.InputDevice, time uint32, source wlroots.AxisSource, orientation wlroots.AxisOrientation, delta float64, deltaDiscrete int32) {
 	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source)
 }
 
