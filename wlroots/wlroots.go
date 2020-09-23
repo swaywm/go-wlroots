@@ -63,11 +63,14 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/swaywm/go-wlroots/xkb"
+
+	"golang.org/x/sys/unix"
 )
 
 type XWayland struct {
@@ -482,8 +485,11 @@ func (s Surface) Walk(visit func()) {
 }
 
 func (s Surface) SendFrameDone(when time.Time) {
-	t := C.struct_timespec{}
-	C.wlr_surface_send_frame_done(s.p, &t)
+	// we ignore the returned error; the only possible error is
+	// ERANGE, when timespec on a platform has int32 precision, but
+	// our time requires 64 bits. This should not occur.
+	t, _ := unix.TimeToTimespec(when)
+	C.wlr_surface_send_frame_done(s.p, (*C.struct_timespec)(unsafe.Pointer(&t)))
 }
 
 func (s Surface) XDGSurface() XDGSurface {
@@ -937,6 +943,14 @@ type (
 	AxisOrientation uint32
 )
 
+var inputDeviceNames = []string{
+	InputDeviceTypeKeyboard:   "keyboard",
+	InputDeviceTypePointer:    "pointer",
+	InputDeviceTypeTouch:      "touch",
+	InputDeviceTypeTabletTool: "tablet tool",
+	InputDeviceTypeTabletPad:  "tablet pad",
+}
+
 const (
 	InputDeviceTypeKeyboard   InputDeviceType = C.WLR_INPUT_DEVICE_KEYBOARD
 	InputDeviceTypePointer    InputDeviceType = C.WLR_INPUT_DEVICE_POINTER
@@ -966,11 +980,26 @@ func (d InputDevice) OnDestroy(cb func(InputDevice)) {
 	})
 }
 
-func (d InputDevice) Type() InputDeviceType {
-	return InputDeviceType(d.p._type)
+func (d InputDevice) Type() InputDeviceType { return InputDeviceType(d.p._type) }
+func (d InputDevice) Vendor() int           { return int(d.p.vendor) }
+func (d InputDevice) Product() int          { return int(d.p.product) }
+func (d InputDevice) Name() string          { return C.GoString(d.p.name) }
+func (d InputDevice) Width() float64        { return float64(d.p.width_mm) }
+func (d InputDevice) Height() float64       { return float64(d.p.height_mm) }
+func (d InputDevice) OutputName() string    { return C.GoString(d.p.output_name) }
+
+func validateInputDeviceType(d InputDevice, fn string, req InputDeviceType) {
+	if typ := d.Type(); typ != req {
+		if int(typ) >= len(inputDeviceNames) {
+			panic(fmt.Sprintf("%s called on input device of type %d", fn, typ))
+		} else {
+			panic(fmt.Sprintf("%s called on input device of type %s", fn, inputDeviceNames[typ]))
+		}
+	}
 }
 
 func (d InputDevice) Keyboard() Keyboard {
+	validateInputDeviceType(d, "Keyboard", InputDeviceTypeKeyboard)
 	p := *(*unsafe.Pointer)(unsafe.Pointer(&d.p.anon0[0]))
 	return Keyboard{p: (*C.struct_wlr_keyboard)(p)}
 }
@@ -993,6 +1022,31 @@ func (b DMABuf) OnDestroy(cb func(DMABuf)) {
 	man.add(unsafe.Pointer(b.p), &b.p.events.destroy, func(unsafe.Pointer) {
 		cb(b)
 	})
+}
+
+type EventLoop struct {
+	p *C.struct_wl_event_loop
+}
+
+func (evl EventLoop) OnDestroy(cb func(EventLoop)) {
+	l := man.add(unsafe.Pointer(evl.p), nil, func(data unsafe.Pointer) {
+		cb(evl)
+	})
+	C.wl_event_loop_add_destroy_listener(evl.p, l.p)
+}
+
+func (evl EventLoop) Fd() uintptr {
+	return uintptr(C.wl_event_loop_get_fd(evl.p))
+}
+
+func (evl EventLoop) Dispatch(timeout time.Duration) {
+	var d int
+	if timeout >= 0 {
+		d = int(timeout / time.Millisecond)
+	} else {
+		d = -1
+	}
+	C.wl_event_loop_dispatch(evl.p, C.int(d))
 }
 
 type Display struct {
@@ -1027,6 +1081,15 @@ func (d Display) Terminate() {
 	C.wl_display_terminate(d.p)
 }
 
+func (d Display) EventLoop() EventLoop {
+	p := C.wl_display_get_event_loop(d.p)
+	evl := EventLoop{p: p}
+	evl.OnDestroy(func(EventLoop) {
+		man.delete(unsafe.Pointer(p))
+	})
+	return evl
+}
+
 func (d Display) AddSocketAuto() (string, error) {
 	socket := C.wl_display_add_socket_auto(d.p)
 	if socket == nil {
@@ -1034,6 +1097,10 @@ func (d Display) AddSocketAuto() (string, error) {
 	}
 
 	return C.GoString(socket), nil
+}
+
+func (d Display) FlushClients() {
+	C.wl_display_flush_clients(d.p)
 }
 
 type ServerDecorationManagerMode uint32
