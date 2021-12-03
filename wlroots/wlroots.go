@@ -653,7 +653,7 @@ func (r Renderer) InitDisplay(display Display) {
 }
 
 func (r Renderer) Begin(output Output, width int, height int) {
-	C.wlr_renderer_begin(r.p, C.int(width), C.int(height))
+	C.wlr_renderer_begin(r.p, C.uint(width), C.uint(height))
 }
 
 func (r Renderer) Clear(color *Color) {
@@ -886,8 +886,8 @@ type (
 )
 
 const (
-	KeyStateReleased KeyState = C.WLR_KEY_RELEASED
-	KeyStatePressed  KeyState = C.WLR_KEY_PRESSED
+	KeyStateReleased KeyState = C.WL_KEYBOARD_KEY_STATE_RELEASED
+	KeyStatePressed  KeyState = C.WL_KEYBOARD_KEY_STATE_PRESSED
 
 	KeyboardModifierShift KeyboardModifier = C.WLR_MODIFIER_SHIFT
 	KeyboardModifierCaps  KeyboardModifier = C.WLR_MODIFIER_CAPS
@@ -1325,7 +1325,7 @@ type Backend struct {
 }
 
 func NewBackend(display Display) Backend {
-	p := C.wlr_backend_autocreate(display.p, nil)
+	p := C.wlr_backend_autocreate(display.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Backend{p: p}
 }
