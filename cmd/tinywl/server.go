@@ -20,6 +20,7 @@ const (
 type Server struct {
 	display    wlroots.Display
 	backend    wlroots.Backend
+	allocator  wlroots.Allocator
 	renderer   wlroots.Renderer
 	layout     wlroots.OutputLayout
 	cursor     wlroots.Cursor
@@ -57,6 +58,7 @@ func NewServer() (*Server, error) {
 
 	s.backend.OnNewInput(s.handleNewInput)
 	s.renderer = s.backend.Renderer()
+	s.allocator = s.backend.Allocator(s.renderer)
 	s.renderer.InitDisplay(s.display)
 
 	// create compositor and data device manager interfaces
@@ -213,6 +215,8 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	if len(modes) > 0 {
 		output.SetMode(modes[len(modes)-1])
 	}
+
+	output.InitRender(s.allocator, s.renderer)
 
 	s.layout.AddOutputAuto(output)
 	output.OnFrame(s.handleNewFrame)

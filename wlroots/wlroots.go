@@ -8,9 +8,9 @@ package wlroots
 // #include <wlr/backend.h>
 // #include <wlr/backend/wayland.h>
 // #include <wlr/backend/x11.h>
+// #include <wlr/render/allocator.h>
 // #include <wlr/render/wlr_renderer.h>
 // #include <wlr/render/wlr_texture.h>
-// #include <wlr/types/wlr_box.h>
 // #include <wlr/types/wlr_compositor.h>
 // #include <wlr/types/wlr_cursor.h>
 // #include <wlr/types/wlr_data_device.h>
@@ -25,6 +25,7 @@ package wlroots
 // #include <wlr/types/wlr_surface.h>
 // #include <wlr/types/wlr_xcursor_manager.h>
 // #include <wlr/types/wlr_xdg_shell.h>
+// #include <wlr/util/box.h>
 // #include <wlr/util/edges.h>
 // #include <wlr/util/log.h>
 // #include <wlr/xwayland.h>
@@ -696,7 +697,7 @@ func (o Output) OnDestroy(cb func(Output)) {
 }
 
 func (o Output) Name() string {
-	return C.GoString(&o.p.name[0])
+	return C.GoString(o.p.name)
 }
 
 func (o Output) Scale() float32 {
@@ -786,6 +787,10 @@ func (o Output) SetTitle(title string) error {
 	}
 
 	return nil
+}
+
+func (o Output) InitRender(a Allocator, r Renderer) bool {
+	return bool(C.wlr_output_init_render(o.p, a.p, r.p))
 }
 
 type OutputLayout struct {
@@ -1369,10 +1374,24 @@ func (b Backend) OnNewInput(cb func(InputDevice)) {
 	})
 }
 
+func (b Backend) Allocator(r Renderer) Allocator {
+	p := C.wlr_allocator_autocreate(b.p, r.p)
+	man.track(unsafe.Pointer(p), &p.events.destroy)
+	return Allocator{p: p}
+}
+
 func (b Backend) Renderer() Renderer {
-	p := C.wlr_backend_get_renderer(b.p)
+	p := C.wlr_renderer_autocreate(b.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Renderer{p: p}
+}
+
+type Allocator struct {
+	p *C.struct_wlr_allocator
+}
+
+func (s Allocator) Nil() bool {
+	return s.p == nil
 }
 
 // This whole mess has to exist for a number of reasons:
