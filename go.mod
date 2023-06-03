@@ -1,5 +1,5 @@
 module github.com/swaywm/go-wlroots
 
-go 1.14
+go 1.21
 
-require golang.org/x/sys v0.0.0-20200918174421-af09f7315aff
+require golang.org/x/sys v0.15.0
