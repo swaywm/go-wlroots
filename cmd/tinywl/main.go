@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"runtime"
@@ -11,7 +12,9 @@ import (
 )
 
 var (
-	command = flag.String("s", "", "startup command")
+	command      = flag.String("s", "", "startup command")
+	programLevel = new(slog.LevelVar) // Info by default
+
 )
 
 func fatal(msg string, err error) {
@@ -26,9 +29,13 @@ func init() {
 }
 
 func main() {
+	// set global logger with custom options
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})))
+
 	flag.Parse()
 
 	// set up logging
+	// programLevel.Set(slog.LevelDebug)
 	wlroots.OnLog(wlroots.LogImportanceDebug, nil)
 
 	// start the server
