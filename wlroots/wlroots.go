@@ -1,33 +1,48 @@
 package wlroots
 
+import "C"
+import (
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/swaywm/go-wlroots/xkb"
+)
+
 // #include <stdarg.h>
 // #include <stdio.h>
 // #include <stdlib.h>
 // #include <time.h>
-// #include <wayland-server.h>
+// #include <wayland-server-core.h>
 // #include <wlr/backend.h>
 // #include <wlr/backend/wayland.h>
 // #include <wlr/backend/x11.h>
 // #include <wlr/render/allocator.h>
 // #include <wlr/render/wlr_renderer.h>
-// #include <wlr/render/wlr_texture.h>
-// #include <wlr/types/wlr_compositor.h>
 // #include <wlr/types/wlr_cursor.h>
+// #include <wlr/types/wlr_compositor.h>
 // #include <wlr/types/wlr_data_device.h>
-// #include <wlr/types/wlr_server_decoration.h>
-// #include <wlr/types/wlr_linux_dmabuf_v1.h>
 // #include <wlr/types/wlr_input_device.h>
 // #include <wlr/types/wlr_keyboard.h>
-// #include <wlr/types/wlr_matrix.h>
 // #include <wlr/types/wlr_output.h>
 // #include <wlr/types/wlr_output_layout.h>
+// #include <wlr/types/wlr_pointer.h>
+// #include <wlr/types/wlr_scene.h>
 // #include <wlr/types/wlr_seat.h>
-// #include <wlr/types/wlr_surface.h>
+// #include <wlr/types/wlr_subcompositor.h>
 // #include <wlr/types/wlr_xcursor_manager.h>
 // #include <wlr/types/wlr_xdg_shell.h>
+// #include <wlr/util/log.h>
+// #include <wlr/render/wlr_texture.h>
+// #include <wlr/types/wlr_server_decoration.h>
+// #include <wlr/types/wlr_linux_dmabuf_v1.h>
+// #include <wlr/types/wlr_matrix.h>
 // #include <wlr/util/box.h>
 // #include <wlr/util/edges.h>
-// #include <wlr/util/log.h>
 // #include <wlr/xwayland.h>
 //
 // void _wlr_log_cb(enum wlr_log_importance importance, char *msg);
@@ -61,18 +76,6 @@ package wlroots
 // #cgo pkg-config: wlroots wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 import "C"
-
-import (
-	"errors"
-	"fmt"
-	"sync"
-	"time"
-	"unsafe"
-
-	"github.com/swaywm/go-wlroots/xkb"
-
-	"golang.org/x/sys/unix"
-)
 
 type XWayland struct {
 	p *C.struct_wlr_xwayland
@@ -110,8 +113,8 @@ func (s XWaylandSurface) Surface() Surface {
 	return Surface{p: s.p.surface}
 }
 
-func (s XWaylandSurface) Geometry() Box {
-	return Box{
+func (s XWaylandSurface) Geometry() GeoBox {
+	return GeoBox{
 		X:      int(s.p.x),
 		Y:      int(s.p.y),
 		Width:  int(s.p.width),
@@ -124,13 +127,13 @@ func (s XWaylandSurface) Configure(x int16, y int16, width uint16, height uint16
 }
 
 func (s XWaylandSurface) OnMap(cb func(XWaylandSurface)) {
-	man.add(unsafe.Pointer(s.p), &s.p.events._map, func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.surface.events._map, func(data unsafe.Pointer) {
 		cb(s)
 	})
 }
 
 func (s XWaylandSurface) OnUnmap(cb func(XWaylandSurface)) {
-	man.add(unsafe.Pointer(s.p), &s.p.events.unmap, func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.surface.events.unmap, func(data unsafe.Pointer) {
 		cb(s)
 	})
 }
@@ -180,7 +183,8 @@ type XDGShell struct {
 }
 
 type XDGSurface struct {
-	p *C.struct_wlr_xdg_surface
+	p    *C.struct_wlr_xdg_surface
+	data *C.struct_wlr_scene_tree
 }
 
 type XDGPopup struct {
@@ -193,8 +197,8 @@ type XDGTopLevel struct {
 	p *C.struct_wlr_xdg_toplevel
 }
 
-func NewXDGShell(display Display) XDGShell {
-	p := C.wlr_xdg_shell_create(display.p)
+func NewXDGShell(display Display, version int) XDGShell {
+	p := C.wlr_xdg_shell_create(display.p, C.uint(version))
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return XDGShell{p: p}
 }
@@ -255,19 +259,23 @@ func (s XDGSurface) TopLevel() XDGTopLevel {
 }
 
 func (s XDGSurface) TopLevelSetActivated(activated bool) {
-	C.wlr_xdg_toplevel_set_activated(s.p, C.bool(activated))
+	C.wlr_xdg_toplevel_set_activated(s.TopLevel().p, C.bool(activated))
 }
 
 func (s XDGSurface) TopLevelSetSize(width uint32, height uint32) {
-	C.wlr_xdg_toplevel_set_size(s.p, C.uint32_t(width), C.uint32_t(height))
+	C.wlr_xdg_toplevel_set_size(s.TopLevel().p, C.int(width), C.int(height))
 }
 
 func (s XDGSurface) TopLevelSetTiled(edges Edges) {
-	C.wlr_xdg_toplevel_set_tiled(s.p, C.uint32_t(edges))
+	C.wlr_xdg_toplevel_set_tiled(s.TopLevel().p, C.uint(edges))
 }
 
 func (s XDGSurface) SendClose() {
-	C.wlr_xdg_toplevel_send_close(s.p)
+	C.wlr_xdg_toplevel_send_close(s.TopLevel().p)
+}
+
+func (s XDGSurface) SceneTree() SceneTree {
+	return SceneTree{p: (*C.struct_wlr_scene_tree)(s.p.data)}
 }
 
 func (s XDGSurface) Ping() {
@@ -284,14 +292,18 @@ func (s XDGSurface) SurfaceAt(sx float64, sy float64) (surface Surface, subX flo
 	return Surface{p: p}, float64(csubX), float64(csubY)
 }
 
+func (s XDGSurface) SetData(tree SceneTree) {
+	s.data = tree.p
+}
+
 func (s XDGSurface) OnMap(cb func(XDGSurface)) {
-	man.add(unsafe.Pointer(s.p), &s.p.events._map, func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.surface.events._map, func(data unsafe.Pointer) {
 		cb(s)
 	})
 }
 
 func (s XDGSurface) OnUnmap(cb func(XDGSurface)) {
-	man.add(unsafe.Pointer(s.p), &s.p.events.unmap, func(data unsafe.Pointer) {
+	man.add(unsafe.Pointer(s.p), &s.p.surface.events.unmap, func(data unsafe.Pointer) {
 		cb(s)
 	})
 }
@@ -315,11 +327,11 @@ func (s XDGSurface) OnNewPopup(cb func(XDGSurface, XDGPopup)) {
 	})
 }
 
-func (s XDGSurface) Geometry() Box {
+func (s XDGSurface) Geometry() GeoBox {
 	var cb C.struct_wlr_box
 	C.wlr_xdg_surface_get_geometry(s.p, &cb)
 
-	var b Box
+	var b GeoBox
 	b.fromC(&cb)
 	return b
 }
@@ -348,6 +360,10 @@ func (t XDGTopLevel) Title() string {
 	return C.GoString(t.p.title)
 }
 
+func (s XDGTopLevel) Base() XDGSurface {
+	return XDGSurface{p: (*C.struct_wlr_xdg_surface)(s.p.base)}
+}
+
 type XCursor struct {
 	p *C.struct_wlr_xcursor
 }
@@ -360,8 +376,8 @@ type XCursorManager struct {
 	p *C.struct_wlr_xcursor_manager
 }
 
-func NewXCursorManager() XCursorManager {
-	p := C.wlr_xcursor_manager_create(nil, 24)
+func NewXCursorManager(name string, size int) XCursorManager {
+	p := C.wlr_xcursor_manager_create(C.CString(name), C.uint(size))
 	return XCursorManager{p: p}
 }
 
@@ -369,21 +385,8 @@ func (m XCursorManager) Destroy() {
 	C.wlr_xcursor_manager_destroy(m.p)
 }
 
-func (m XCursorManager) Load() {
-	C.wlr_xcursor_manager_load(m.p, 1)
-}
-
-func (m XCursorManager) SetCursorImage(cursor Cursor, name string) {
-	s := C.CString(name)
-	C.wlr_xcursor_manager_set_cursor_image(m.p, s, cursor.p)
-	C.free(unsafe.Pointer(s))
-}
-
-func (m XCursorManager) XCursor(name string, scale float32) XCursor {
-	s := C.CString(name)
-	p := C.wlr_xcursor_manager_get_xcursor(m.p, s, C.float(scale))
-	C.free(unsafe.Pointer(s))
-	return XCursor{p: p}
+func (m XCursorManager) Load(scale float32) {
+	C.wlr_xcursor_manager_load(m.p, C.float(scale))
 }
 
 func (c XCursor) Image(i int) XCursorImage {
@@ -457,9 +460,9 @@ func (s Surface) OnDestroy(cb func(Surface)) {
 }
 
 func (s Surface) Type() SurfaceType {
-	if C.wlr_surface_is_xdg_surface(s.p) {
+	if C.wlr_xdg_surface_try_from_wlr_surface(s.p) != nil {
 		return SurfaceTypeXDG
-	} else if C.wlr_surface_is_xwayland_surface(s.p) {
+	} else if C.wlr_xwayland_surface_try_from_wlr_surface(s.p) != nil {
 		return SurfaceTypeXWayland
 	}
 
@@ -494,12 +497,12 @@ func (s Surface) SendFrameDone(when time.Time) {
 }
 
 func (s Surface) XDGSurface() XDGSurface {
-	p := C.wlr_xdg_surface_from_wlr_surface(s.p)
+	p := C.wlr_xdg_surface_try_from_wlr_surface(s.p)
 	return XDGSurface{p: p}
 }
 
 func (s Surface) XWaylandSurface() XWaylandSurface {
-	p := C.wlr_xwayland_surface_from_wlr_surface(s.p)
+	p := C.wlr_xwayland_surface_try_from_wlr_surface(s.p)
 	return XWaylandSurface{p: p}
 }
 
@@ -571,7 +574,7 @@ func (s Seat) SetCapabilities(caps SeatCapability) {
 }
 
 func (s Seat) SetKeyboard(dev InputDevice) {
-	C.wlr_seat_set_keyboard(s.p, dev.p)
+	C.wlr_seat_set_keyboard(s.p, dev.Keyboard().p)
 }
 
 func (s Seat) NotifyPointerButton(time uint32, button uint32, state ButtonState) {
@@ -671,7 +674,7 @@ func (r Renderer) RenderTextureWithMatrix(texture Texture, matrix *Matrix, alpha
 	C.wlr_render_texture_with_matrix(r.p, texture.p, &m[0], C.float(alpha))
 }
 
-func (r Renderer) RenderRect(box *Box, color *Color, projection *Matrix) {
+func (r Renderer) RenderRect(box *GeoBox, color *Color, projection *Matrix) {
 	b := box.toC()
 	c := color.toC()
 	pm := projection.toC()
@@ -753,8 +756,20 @@ func (o Output) DestroyGlobal() {
 	C.wlr_output_destroy_global(o.p)
 }
 
-func (o Output) Commit() {
-	C.wlr_output_commit(o.p)
+func (o Output) ScheduleDone() {
+	C.wlr_output_schedule_done(o.p)
+}
+
+func (o Output) Destroy() {
+	C.wlr_output_destroy(o.p)
+}
+
+func (o Output) Test() bool {
+	return bool(C.wlr_output_test(o.p))
+}
+
+func (o Output) Commit() bool {
+	return bool(C.wlr_output_commit(o.p))
 }
 
 func (o Output) Modes() []OutputMode {
@@ -771,6 +786,31 @@ func (o Output) Modes() []OutputMode {
 
 func (o Output) SetMode(mode OutputMode) {
 	C.wlr_output_set_mode(o.p, mode.p)
+}
+
+func (o Output) PrefferedMode() OutputMode {
+	mode := C.wlr_output_preferred_mode(o.p)
+	return OutputMode{p: mode}
+}
+
+func (o Output) SetCustomMode(width int, height int, refresh int) {
+	C.wlr_output_set_custom_mode(o.p, C.int(width), C.int(height), C.int(refresh))
+}
+
+func (o Output) EnableAdaptiveSync(enable bool) {
+	C.wlr_output_enable_adaptive_sync(o.p, C.bool(enable))
+}
+
+func (o Output) SetScale(scale float32) {
+	C.wlr_output_set_scale(o.p, C.float(scale))
+}
+
+func (o Output) SetName(name string) {
+	C.wlr_output_set_name(o.p, C.CString(name))
+}
+
+func (o Output) SetDescription(desc string) {
+	C.wlr_output_set_description(o.p, C.CString(desc))
 }
 
 func (o Output) Enable(enable bool) {
@@ -791,6 +831,18 @@ func (o Output) SetTitle(title string) error {
 
 func (o Output) InitRender(a Allocator, r Renderer) bool {
 	return bool(C.wlr_output_init_render(o.p, a.p, r.p))
+}
+
+type OutputState struct {
+	state C.struct_wlr_output_state
+}
+
+func (os OutputState) StateInit() {
+	C.wlr_output_state_init(&os.state)
+}
+
+func (os OutputState) StateSetEnabled() {
+	C.wlr_output_state_set_enabled(&os.state, true)
 }
 
 type OutputLayout struct {
@@ -833,9 +885,135 @@ func (m OutputMode) RefreshRate() int32 {
 	return int32(m.p.refresh)
 }
 
+type SceneNodeType uint32
+
+const (
+	SceneNodeTree   SceneNodeType = C.WLR_SCENE_NODE_TREE
+	SceneNodeRect   SceneNodeType = C.WLR_SCENE_NODE_RECT
+	SceneNodeBuffer SceneNodeType = C.WLR_SCENE_NODE_BUFFER
+)
+
+type SceneNode struct {
+	p *C.struct_wlr_scene_node
+}
+
+type Scene struct {
+	p *C.struct_wlr_scene
+}
+
+type SceneSurface struct {
+	p *C.struct_wlr_scene_surface
+}
+
+type SceneTree struct {
+	p *C.struct_wlr_scene_tree
+}
+
+type SceneRect struct {
+	p *C.struct_wlr_scene_rect
+}
+
+type SceneBuffer struct {
+	p *C.struct_wlr_scene_buffer
+}
+
+type SceneOutput struct {
+	p *C.struct_wlr_scene_output
+}
+
+type SceneTimer struct {
+	p *C.struct_wlr_scene_timer
+}
+
+type SceneOutputLayout struct {
+	p *C.struct_wlr_scene_output_layout
+}
+
+func (sn SceneNode) SceneTree(st SceneTree) {
+	st.p = C.wlr_scene_tree_from_node(sn.p)
+	return
+}
+
+func (sn SceneNode) SceneRect() (sr SceneRect) {
+	sr.p = C.wlr_scene_rect_from_node(sn.p)
+	return
+}
+
+func (sn SceneNode) SceneBuffer() (sb SceneBuffer) {
+	sb.p = C.wlr_scene_buffer_from_node(sn.p)
+	return
+}
+
+func (sn SceneNode) Destroy() {
+	C.wlr_scene_node_destroy(sn.p)
+}
+
+func (sn SceneNode) SetEnabled(enabled bool) {
+	C.wlr_scene_node_set_enabled(sn.p, C.bool(enabled))
+}
+
+func (sn SceneNode) SetPosition(x float64, y float64) {
+	C.wlr_scene_node_set_position(sn.p, C.int(x), C.int(y))
+}
+
+func (sn SceneNode) RaiseToTop() {
+	C.wlr_scene_node_raise_to_top(sn.p)
+}
+
+/**
+ * Create a new scene-graph.
+ */
+
+func NewScene() Scene {
+	p := C.wlr_scene_create()
+	return Scene{p: p}
+}
+
+func (s Scene) AttachOutputLayout(layout OutputLayout) SceneOutputLayout {
+	p := C.wlr_scene_attach_output_layout(s.p, layout.p)
+	return SceneOutputLayout{p: p}
+}
+
+/**
+ * Add a node displaying nothing but its children.
+ */
+
+func (parent SceneTree) NewSceneTree() SceneTree {
+	p := C.wlr_scene_tree_create(parent.p)
+	return SceneTree{p: p}
+}
+
+/**
+ * Add a node displaying a single surface to the scene-graph.
+ *
+ * The child sub-surfaces are ignored.
+ *
+ * wlr_surface_send_enter() and wlr_surface_send_leave() will be called
+ * automatically based on the position of the surface and outputs in
+ * the scene.
+ */
+
+func (parent SceneTree) NewSurface(surface Surface) SceneSurface {
+	p := C.wlr_scene_surface_create(parent.p, surface.p)
+	return SceneSurface{p: p}
+}
+
+func (s Scene) Tree() SceneTree {
+	return SceneTree{p: &s.p.tree}
+}
+
+func (st SceneTree) Node() SceneNode {
+	return SceneNode{p: (*C.struct_wlr_scene_node)(&st.p.node)}
+}
+
+func (st SceneTree) XDGSurfaceCreate(s XDGSurface) SceneTree {
+	p := C.wlr_scene_xdg_surface_create(st.p, s.p)
+	return SceneTree{p: p}
+}
+
 type Matrix [9]float32
 
-func (m *Matrix) ProjectBox(box *Box, transform uint32, rotation float32, projection *Matrix) {
+func (m *Matrix) ProjectBox(box *GeoBox, transform uint32, rotation float32, projection *Matrix) {
 	cm := m.toC()
 	b := box.toC()
 	pm := projection.toC()
@@ -936,7 +1114,7 @@ func (k Keyboard) OnModifiers(cb func(keyboard Keyboard)) {
 
 func (k Keyboard) OnKey(cb func(keyboard Keyboard, time uint32, keyCode uint32, updateState bool, state KeyState)) {
 	man.add(unsafe.Pointer(k.p), &k.p.events.key, func(data unsafe.Pointer) {
-		event := (*C.struct_wlr_event_keyboard_key)(data)
+		event := (*C.struct_wlr_keyboard_key_event)(data)
 		cb(k, uint32(event.time_msec), uint32(event.keycode), bool(event.update_state), KeyState(event.state))
 	})
 }
@@ -962,6 +1140,7 @@ const (
 	InputDeviceTypeTouch      InputDeviceType = C.WLR_INPUT_DEVICE_TOUCH
 	InputDeviceTypeTabletTool InputDeviceType = C.WLR_INPUT_DEVICE_TABLET_TOOL
 	InputDeviceTypeTabletPad  InputDeviceType = C.WLR_INPUT_DEVICE_TABLET_PAD
+	InputDeviceTypeSwitch     InputDeviceType = C.WLR_INPUT_DEVICE_SWITCH
 
 	ButtonStateReleased ButtonState = C.WLR_BUTTON_RELEASED
 	ButtonStatePressed  ButtonState = C.WLR_BUTTON_PRESSED
@@ -989,9 +1168,10 @@ func (d InputDevice) Type() InputDeviceType { return InputDeviceType(d.p._type) 
 func (d InputDevice) Vendor() int           { return int(d.p.vendor) }
 func (d InputDevice) Product() int          { return int(d.p.product) }
 func (d InputDevice) Name() string          { return C.GoString(d.p.name) }
-func (d InputDevice) Width() float64        { return float64(d.p.width_mm) }
-func (d InputDevice) Height() float64       { return float64(d.p.height_mm) }
-func (d InputDevice) OutputName() string    { return C.GoString(d.p.output_name) }
+
+// func (d InputDevice) Width() float64        { return float64(d.p.width_mm) }
+// func (d InputDevice) Height() float64       { return float64(d.p.height_mm) }
+// func (d InputDevice) OutputName() string    { return C.GoString(d.p.output_name) }
 
 func validateInputDeviceType(d InputDevice, fn string, req InputDeviceType) {
 	if typ := d.Type(); typ != req {
@@ -1005,7 +1185,7 @@ func validateInputDeviceType(d InputDevice, fn string, req InputDeviceType) {
 
 func (d InputDevice) Keyboard() Keyboard {
 	validateInputDeviceType(d, "Keyboard", InputDeviceTypeKeyboard)
-	p := *(*unsafe.Pointer)(unsafe.Pointer(&d.p.anon0[0]))
+	p := *(*unsafe.Pointer)(unsafe.Pointer(&d.p))
 	return Keyboard{p: (*C.struct_wlr_keyboard)(p)}
 }
 
@@ -1018,7 +1198,7 @@ type DMABuf struct {
 }
 
 func NewDMABuf(display Display, renderer Renderer) DMABuf {
-	p := C.wlr_linux_dmabuf_v1_create(display.p, renderer.p)
+	p := C.wlr_linux_dmabuf_v1_create_with_renderer(display.p, 4, renderer.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return DMABuf{p: p}
 }
@@ -1106,6 +1286,10 @@ func (d Display) AddSocketAuto() (string, error) {
 
 func (d Display) FlushClients() {
 	C.wl_display_flush_clients(d.p)
+}
+
+func (d Display) DestroyClients() {
+	C.wl_display_destroy_clients(d.p)
 }
 
 type ServerDecorationManagerMode uint32
@@ -1226,32 +1410,32 @@ func (c Cursor) SetSurface(surface Surface, hotspotX int32, hotspotY int32) {
 
 func (c Cursor) OnMotion(cb func(dev InputDevice, time uint32, dx float64, dy float64)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.motion, func(data unsafe.Pointer) {
-		event := (*C.struct_wlr_event_pointer_motion)(data)
-		dev := InputDevice{p: event.device}
+		event := (*C.struct_wlr_pointer_motion_event)(data)
+		dev := InputDevice{p: &event.pointer.base}
 		cb(dev, uint32(event.time_msec), float64(event.delta_x), float64(event.delta_y))
 	})
 }
 
 func (c Cursor) OnMotionAbsolute(cb func(dev InputDevice, time uint32, x float64, y float64)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.motion_absolute, func(data unsafe.Pointer) {
-		event := (*C.struct_wlr_event_pointer_motion_absolute)(data)
-		dev := InputDevice{p: event.device}
+		event := (*C.struct_wlr_pointer_motion_absolute_event)(data)
+		dev := InputDevice{p: &event.pointer.base}
 		cb(dev, uint32(event.time_msec), float64(event.x), float64(event.y))
 	})
 }
 
 func (c Cursor) OnButton(cb func(dev InputDevice, time uint32, button uint32, state ButtonState)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.button, func(data unsafe.Pointer) {
-		event := (*C.struct_wlr_event_pointer_button)(data)
-		dev := InputDevice{p: event.device}
+		event := (*C.struct_wlr_pointer_button_event)(data)
+		dev := InputDevice{p: &event.pointer.base}
 		cb(dev, uint32(event.time_msec), uint32(event.button), ButtonState(event.state))
 	})
 }
 
 func (c Cursor) OnAxis(cb func(dev InputDevice, time uint32, source AxisSource, orientation AxisOrientation, delta float64, deltaDiscrete int32)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.axis, func(data unsafe.Pointer) {
-		event := (*C.struct_wlr_event_pointer_axis)(data)
-		dev := InputDevice{p: event.device}
+		event := (*C.struct_wlr_pointer_axis_event)(data)
+		dev := InputDevice{p: &event.pointer.base}
 		cb(dev, uint32(event.time_msec), AxisSource(event.source), AxisOrientation(event.orientation), float64(event.delta), int32(event.delta_discrete))
 	})
 }
@@ -1266,13 +1450,29 @@ type Compositor struct {
 	p *C.struct_wlr_compositor
 }
 
-func NewCompositor(display Display, renderer Renderer) Compositor {
-	p := C.wlr_compositor_create(display.p, renderer.p)
+func NewCompositor(display Display, version int, renderer Renderer) Compositor {
+	p := C.wlr_compositor_create(display.p, C.uint(version), renderer.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return Compositor{p: p}
 }
 
 func (c Compositor) OnDestroy(cb func(Compositor)) {
+	man.add(unsafe.Pointer(c.p), &c.p.events.destroy, func(unsafe.Pointer) {
+		cb(c)
+	})
+}
+
+type SubCompositor struct {
+	p *C.struct_wlr_subcompositor
+}
+
+func NewSubCompositor(display Display) SubCompositor {
+	p := C.wlr_subcompositor_create(display.p)
+	man.track(unsafe.Pointer(p), &p.events.destroy)
+	return SubCompositor{p: p}
+}
+
+func (c SubCompositor) OnDestroy(cb func(SubCompositor)) {
 	man.add(unsafe.Pointer(c.p), &c.p.events.destroy, func(unsafe.Pointer) {
 		cb(c)
 	})
@@ -1298,18 +1498,18 @@ func (c *Color) toC() [4]C.float {
 	}
 }
 
-type Box struct {
+type GeoBox struct {
 	X, Y, Width, Height int
 }
 
-func (b *Box) Set(x, y, width, height int) {
+func (b *GeoBox) Set(x, y, width, height int) {
 	b.X = x
 	b.Y = y
 	b.Width = width
 	b.Height = height
 }
 
-func (b *Box) toC() C.struct_wlr_box {
+func (b *GeoBox) toC() C.struct_wlr_box {
 	return C.struct_wlr_box{
 		x:      C.int(b.X),
 		y:      C.int(b.Y),
@@ -1318,7 +1518,7 @@ func (b *Box) toC() C.struct_wlr_box {
 	}
 }
 
-func (b *Box) fromC(cb *C.struct_wlr_box) {
+func (b *GeoBox) fromC(cb *C.struct_wlr_box) {
 	b.X = int(cb.x)
 	b.Y = int(cb.y)
 	b.Width = int(cb.width)
@@ -1329,10 +1529,13 @@ type Backend struct {
 	p *C.struct_wlr_backend
 }
 
-func NewBackend(display Display) Backend {
-	p := C.wlr_backend_autocreate(display.p)
+func NewBackend(display Display) (Backend, error) {
+	p := C.wlr_backend_autocreate(display.p, nil)
+	if p == nil {
+		return Backend{}, errors.New("failed to create wlr_backend")
+	}
 	man.track(unsafe.Pointer(p), &p.events.destroy)
-	return Backend{p: p}
+	return Backend{p: p}, nil
 }
 
 func (b Backend) Destroy() {
@@ -1365,25 +1568,29 @@ func (b Backend) OnNewInput(cb func(InputDevice)) {
 	man.add(unsafe.Pointer(b.p), &b.p.events.new_input, func(data unsafe.Pointer) {
 		dev := wrapInputDevice(data)
 		man.add(unsafe.Pointer(dev.p), &dev.p.events.destroy, func(data unsafe.Pointer) {
-			// delete the underlying device type first
-			man.delete(*(*unsafe.Pointer)(unsafe.Pointer(&dev.p.anon0[0])))
-			// then delete the wlr_input_device itself
+			// delete the wlr_input_device
 			man.delete(unsafe.Pointer(dev.p))
 		})
 		cb(dev)
 	})
 }
 
-func (b Backend) Allocator(r Renderer) Allocator {
+func NewAllocator(b Backend, r Renderer) (Allocator, error) {
 	p := C.wlr_allocator_autocreate(b.p, r.p)
+	if p == nil {
+		return Allocator{}, errors.New("failed to wlr_allocator")
+	}
 	man.track(unsafe.Pointer(p), &p.events.destroy)
-	return Allocator{p: p}
+	return Allocator{p: p}, nil
 }
 
-func (b Backend) Renderer() Renderer {
+func NewRenderer(b Backend) (Renderer, error) {
 	p := C.wlr_renderer_autocreate(b.p)
+	if p == nil {
+		return Renderer{}, errors.New("failed to create wlr_renderer")
+	}
 	man.track(unsafe.Pointer(p), &p.events.destroy)
-	return Renderer{p: p}
+	return Renderer{p: p}, nil
 }
 
 type Allocator struct {

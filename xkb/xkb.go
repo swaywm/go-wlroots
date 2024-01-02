@@ -48,7 +48,7 @@ func (c Context) Destroy() {
 	C.xkb_context_unref(c.p)
 }
 
-func (c Context) Map() Keymap {
+func (c Context) KeyMap() Keymap {
 	var rules C.struct_xkb_rule_names
 	p := C.xkb_keymap_new_from_names(c.p, &rules, C.XKB_KEYMAP_COMPILE_NO_FLAGS)
 	return Keymap{p: p}
