@@ -14,7 +14,13 @@
           buildInputs = [
             gcc
             go
-            libxkbcommon
+            (libxkbcommon.overrideAttrs(finalAttrs: prevAttrs: rec {
+              version = "1.6.0";
+              src = fetchurl {
+                url = "https://xkbcommon.org/download/${prevAttrs.pname}-${version}.tar.xz";
+                hash = "sha256-DtwU7M3TkVFEWLxfWkuZhj7S1lHk3XYakKv09G75nCs=";
+              };
+            }))
             wlroots
             pkg-config
             wayland
@@ -22,6 +28,7 @@
             libGL
             pixman
             xorg.libX11
+            xorg.xcbutilwm
           ];
         };
       }
