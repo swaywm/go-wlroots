@@ -1,15 +1,18 @@
 # go-wlroots [![Documentation](https://godoc.org/github.com/swaywm/go-wlroots/wlroots?status.svg)](https://godoc.org/github.com/swaywm/go-wlroots/wlroots)
 
-__go-wlroots__ is a __WIP__ Go binding for
-[wlroots](https://github.com/swaywm/wlroots). Note: The API is incomplete and
-subject to change.
+__go-wlroots__ is a Go binding for [wlroots](https://github.com/swaywm/wlroots).
 
-To test go-wlroots I've ported [SirCmpwn's Tiny Wayland
-compositor](https://gist.github.com/ddevault/ae4d1cdcca97ffeb2c35f0878d75dc17) to it:
+It is incomplete and supports just enough to run
+[tinywl](https://gitlab.freedesktop.org/wlroots/wlroots/-/tree/master/tinywl):
 
 ![](https://alexbakker.me/u/ys7ucs0dcw.png)
 
-The source of tinywl can be found in [cmd/tinywl](cmd/tinywl).
+The source of the Go version of tinywl can be found in [cmd/tinywl](cmd/tinywl).
+
+> [!NOTE]
+> There are currently no plans to continue development of go-wlroots, other than
+merging the occasional pull request with changes required for compatibility with
+new wlroots versions.
 
 ## Compiling
 
@@ -24,3 +27,4 @@ folder.
 ## License
 
 The source code of this project is licensed under the [MIT license](LICENSE).
+>
