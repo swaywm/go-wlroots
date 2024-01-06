@@ -1,4 +1,4 @@
-# go-wlroots [![Documentation](https://godoc.org/github.com/swaywm/go-wlroots/wlroots?status.svg)](https://godoc.org/github.com/swaywm/go-wlroots/wlroots)
+# go-wlroots [![build](https://github.com/swaywm/go-wlroots/workflows/build/badge.svg)](https://github.com/swaywm/go-wlroots/actions/workflows/build.yml) [![Documentation](https://godoc.org/github.com/swaywm/go-wlroots/wlroots?status.svg)](https://godoc.org/github.com/swaywm/go-wlroots/wlroots)
 
 __go-wlroots__ is a Go binding for [wlroots](https://github.com/swaywm/wlroots).
 

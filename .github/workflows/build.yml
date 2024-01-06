@@ -1,0 +1,16 @@
+name: build
+on: [pull_request, push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: DeterminateSystems/nix-installer-action@cd46bde16ab981b0a7b2dce0574509104543276e
+        with:
+          diagnostic-endpoint:
+      - uses: DeterminateSystems/magic-nix-cache-action@8a218f9e264e9c3803c9a1ee1c30d8e4ab55be63
+        with:
+          diagnostic-endpoint:
+      - name: Build tinywl
+        run: |
+          nix build .#tinywl --print-build-logs
