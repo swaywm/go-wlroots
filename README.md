@@ -16,9 +16,9 @@ new wlroots versions.
 
 ## Compiling
 
-Go 1.8 or newer is required.
+Go 1.21 or newer is required.
 
-Make sure [wlroots](https://github.com/swaywm/wlroots) and its dependencies are
+Make sure [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots) 0.17 and its dependencies are
 installed.
 
 Run ``make all`` to build everything. Binaries can be found in the 'build'

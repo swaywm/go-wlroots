@@ -32,8 +32,8 @@ func WrapState(p unsafe.Pointer) State {
 	return State{p: (*C.struct_xkb_state)(p)}
 }
 
-func NewContext() Context {
-	p := C.xkb_context_new(C.XKB_CONTEXT_NO_FLAGS)
+func NewContext(ksf KeySymFlags) Context {
+	p := C.xkb_context_new(uint32(ksf))
 	return Context{p: p}
 }
 
