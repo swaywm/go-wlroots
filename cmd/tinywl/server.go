@@ -217,7 +217,11 @@ func (s *Server) topLevelAt(lx float64, ly float64) (*wlroots.XDGTopLevel, *wlro
 	/* Find the node corresponding to the tinywl_toplevel at the root of this
 	 * surface tree, it is the only one for which we set the data field. */
 
-	topLevel := surface.XDGSurface().TopLevel()
+	xdgSurface := surface.XDGSurface()
+	if xdgSurface.Nil() {
+		return nil, nil, 0, 0
+	}
+	topLevel := xdgSurface.TopLevel()
 	slog.Debug("topLevelAt", "topLevel", topLevel)
 	slog.Debug("topLevelAt", "s.topLevelList.Len()", s.topLevelList.Len())
 
