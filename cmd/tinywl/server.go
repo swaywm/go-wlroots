@@ -539,29 +539,33 @@ func (s *Server) handleUnMapXDGToplevel(xdgSurface wlroots.XDGSurface) {
 	}
 	s.removeTopLevel(&topLevel)
 }
-func (s *Server) handleNewXDGSurface(xdgSurface wlroots.XDGSurface) {
-	/* This event is raised when wlr_xdg_shell receives a new xdg xdgSurface from a
-	 * client, either a toplevel (application window) or popup. */
+func (s *Server) handleNewXDGPopup(popup wlroots.XDGPopup) {
+	xdgSurface := popup.Base()
+	parent := popup.Parent()
+	if parent.Nil() {
+		panic("xdgSurface popup parent is nil")
+	}
+	xdgSurface.SetData(parent.XDGSurface().SceneTree().NewXDGSurface(xdgSurface))
 
-	if xdgSurface.Role() == wlroots.XDGSurfaceRolePopup {
-
-		parent := xdgSurface.Popup().Parent()
-		if parent.Nil() {
-			panic("xdgSurface popup parent is nil")
+	xdgSurface.OnCommit(func(surface wlroots.XDGSurface) {
+		if surface.InitialCommit() {
+			surface.ScheduleConfigure()
 		}
-		xdgSurface.SetData(parent.XDGSurface().SceneTree().NewXDGSurface(xdgSurface))
-		return
-	}
-	if xdgSurface.Role() != wlroots.XDGSurfaceRoleTopLevel {
-		panic("xdgSurface role is not XDGSurfaceRoleTopLevel")
-	}
+	})
+}
 
+func (s *Server) handleNewXDGTopLevel(toplevel wlroots.XDGTopLevel) {
+	xdgSurface := toplevel.Base()
 	xdgSurface.SetData(s.scene.Tree().NewXDGSurface(xdgSurface.TopLevel().Base()))
 	xdgSurface.OnMap(s.handleMapXDGToplevel)
 	xdgSurface.OnUnmap(s.handleUnMapXDGToplevel)
 	xdgSurface.OnDestroy(func(surface wlroots.XDGSurface) {})
+	xdgSurface.OnCommit(func(surface wlroots.XDGSurface) {
+		if surface.InitialCommit() {
+			surface.ScheduleConfigure()
+		}
+	})
 
-	toplevel := xdgSurface.TopLevel()
 	toplevel.OnRequestMove(func(client wlroots.SeatClient, serial uint32) {
 		s.beginInteractive(&toplevel, CursorModeMove, 0)
 	})
@@ -681,7 +685,9 @@ func NewServer() (s *Server, err error) {
 	 */
 	s.topLevelList.Init()
 	s.xdgShell = s.display.XDGShellCreate(3)
-	s.xdgShell.OnNewSurface(s.handleNewXDGSurface)
+	s.xdgShell.OnNewSurface(func(xdgSurface wlroots.XDGSurface) {})
+	s.xdgShell.OnNewTopLevel(s.handleNewXDGTopLevel)
+	s.xdgShell.OnNewPopup(s.handleNewXDGPopup)
 
 	/*
 	 * Creates a cursor, which is a wlroots utility for tracking the cursor
