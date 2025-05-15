@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <wlr/backend/wayland.h>
 // #include <wlr/types/wlr_output.h>
@@ -24,9 +24,9 @@ import "C"
  * The `frame` event will be emitted when it is a good time for the compositor
  * to submit a new frame.
  *
- * To render a new frame, compositors should call wlr_output_attach_render(),
- * render and call wlr_output_commit(). No rendering should happen outside a
- * `frame` event handler or before wlr_output_attach_render().
+ * To render a new frame compositors should call wlr_output_begin_render_pass(),
+ * perform rendering on that render pass, and finally call
+ * wlr_output_commit_state().
  */
 type Output struct {
 	p *C.struct_wlr_output
@@ -62,8 +62,8 @@ func (o Output) OnDestroy(cb func(Output)) {
 	})
 }
 
-func (o Output) RenderSoftwareCursors() {
-	C.wlr_output_render_software_cursors(o.p, nil)
+func (o Output) RenderSoftwareCursors(pass RenderPass) {
+	C.wlr_output_add_software_cursors_to_render_pass(o.p, pass.p, nil)
 }
 
 /**
@@ -85,24 +85,25 @@ func (o Output) EffectiveResolution() (int, int) {
 }
 
 /**
- * Attach the renderer's buffer to the output. Compositors must call this
- * function before rendering. After they are done rendering, they should call
- * wlr_output_commit() to submit the new frame. The output needs to be
- * enabled.
+ * Begin a render pass on this output.
  *
- * If non-NULL, `buffer_age` is set to the drawing buffer age in number of
- * frames or -1 if unknown. This is useful for damage tracking.
+ * Compositors can call this function to begin rendering. After the render pass
+ * has been submitted, they should call wlr_output_commit_state() to submit the
+ * new frame.
  *
- * If the compositor decides not to render after calling this function, it
- * must call wlr_output_rollback().
+ * On error, NULL is returned. Creating a render pass on a disabled output is
+ * an error.
+ *
+ * The state describes the output changes the rendered frame will be
+ * committed with. A NULL state indicates no change.
  */
-func (o Output) AttachRender() (int, error) {
-	var bufferAge C.int
-	if !C.wlr_output_attach_render(o.p, &bufferAge) {
-		return 0, errors.New("can't make output context current")
+func (o Output) BeginRenderPass(state OutputState) (RenderPass, error) {
+	pass := C.wlr_output_begin_render_pass(o.p, state.p, nil, nil)
+	if pass == nil {
+		return RenderPass{}, errors.New("can't begin render pass")
 	}
 
-	return int(bufferAge), nil
+	return RenderPass{p: pass}, nil
 }
 
 /**
@@ -198,8 +199,8 @@ func (o Output) Refresh() int {
 	return int(o.p.refresh)
 }
 
-func (o Output) CreateGlobal() {
-	C.wlr_output_create_global(o.p)
+func (o Output) CreateGlobal(d Display) {
+	C.wlr_output_create_global(o.p, d.p)
 }
 
 func (o Output) DestroyGlobal() {

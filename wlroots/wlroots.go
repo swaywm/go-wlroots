@@ -5,7 +5,7 @@ import (
 	"unsafe"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <stdlib.h>
 // #include <time.h>
@@ -70,12 +70,12 @@ type OutputLayoutOutput struct {
 	p *C.struct_wlr_output_layout_output
 }
 
-func NewOutputLayout() OutputLayout {
-	return OutputLayoutCerate()
+func NewOutputLayout(d Display) OutputLayout {
+	return OutputLayoutCreate(d)
 }
 
-func OutputLayoutCerate() OutputLayout {
-	p := C.wlr_output_layout_create()
+func OutputLayoutCreate(d Display) OutputLayout {
+	p := C.wlr_output_layout_create(d.p)
 	man.track(unsafe.Pointer(p), &p.events.destroy)
 	return OutputLayout{p: p}
 }
@@ -157,7 +157,7 @@ func (d Display) NewBackend() (Backend, error) {
 }
 
 func (d Display) BackendAutocreate() (Backend, error) {
-	p := C.wlr_backend_autocreate(d.p, nil)
+	p := C.wlr_backend_autocreate(C.wl_display_get_event_loop(d.p), nil)
 	if p == nil {
 		return Backend{}, errors.New("failed to create wlr_backend")
 	}
@@ -283,17 +283,16 @@ func (c *Color) Set(r, g, b, a float32) {
 	c.A = a
 }
 
-func (c *Color) toC() [4]C.float {
-	return [...]C.float{
-		C.float(c.R),
-		C.float(c.G),
-		C.float(c.B),
-		C.float(c.A),
+func (c *Color) toC() C.struct_wlr_render_color {
+	return C.struct_wlr_render_color{
+		r: C.float(c.R),
+		g: C.float(c.G),
+		b: C.float(c.B),
+		a: C.float(c.A),
 	}
 }
 
 type GeoBox struct {
-	p                   *C.struct_wlr_box
 	X, Y, Width, Height int
 }
 
@@ -318,4 +317,31 @@ func (b *GeoBox) fromC(cb *C.struct_wlr_box) {
 	b.Y = int(cb.y)
 	b.Width = int(cb.width)
 	b.Height = int(cb.height)
+}
+
+type FBox struct {
+	X, Y, Width, Height float64
+}
+
+func (b *FBox) Set(x, y, width, height float64) {
+	b.X = x
+	b.Y = y
+	b.Width = width
+	b.Height = height
+}
+
+func (b *FBox) toC() C.struct_wlr_fbox {
+	return C.struct_wlr_fbox{
+		x:      C.double(b.X),
+		y:      C.double(b.Y),
+		width:  C.double(b.Width),
+		height: C.double(b.Height),
+	}
+}
+
+func (b *FBox) fromC(cb *C.struct_wlr_box) {
+	b.X = float64(cb.x)
+	b.Y = float64(cb.y)
+	b.Width = float64(cb.width)
+	b.Height = float64(cb.height)
 }

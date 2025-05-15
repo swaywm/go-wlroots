@@ -7,7 +7,7 @@ package wlroots
 
 import "unsafe"
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <wlr/types/wlr_seat.h>
 import "C"
@@ -67,8 +67,8 @@ func (s Seat) NotifyPointerButton(time uint32, button uint32, state ButtonState)
 	C.wlr_seat_pointer_notify_button(s.p, C.uint32_t(time), C.uint32_t(button), uint32(state))
 }
 
-func (s Seat) NotifyPointerAxis(time uint32, orientation AxisOrientation, delta float64, deltaDiscrete int32, source AxisSource) {
-	C.wlr_seat_pointer_notify_axis(s.p, C.uint32_t(time), C.enum_wlr_axis_orientation(orientation), C.double(delta), C.int32_t(deltaDiscrete), C.enum_wlr_axis_source(source))
+func (s Seat) NotifyPointerAxis(time uint32, orientation AxisOrientation, delta float64, deltaDiscrete int32, source AxisSource, relativeDirection RelativeDirection) {
+	C.wlr_seat_pointer_notify_axis(s.p, C.uint32_t(time), C.enum_wl_pointer_axis(orientation), C.double(delta), C.int32_t(deltaDiscrete), C.enum_wl_pointer_axis_source(source), C.enum_wl_pointer_axis_relative_direction(relativeDirection))
 }
 
 func (s Seat) NotifyPointerEnter(surface Surface, sx float64, sy float64) {

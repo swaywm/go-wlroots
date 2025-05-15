@@ -477,7 +477,7 @@ func (s *Server) handleCursorAxis(_ wlroots.InputDevice, time uint32, source wlr
 	 * for example when you move the scroll wheel. */
 
 	/* Notify the client with pointer focus of the axis event. */
-	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source)
+	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source, wlroots.RelativeDirectionIdentical)
 }
 
 func (s *Server) handleCursorFrame() {
@@ -660,7 +660,7 @@ func NewServer() (s *Server, err error) {
 
 	/* Creates an output layout, which a wlroots utility for working with an
 	 * arrangement of screens in a physical layout. */
-	s.outputLayout = wlroots.NewOutputLayout()
+	s.outputLayout = wlroots.NewOutputLayout(s.display)
 
 	/* Configure a listener to be notified when new outputs are available on the
 	 * backend. */

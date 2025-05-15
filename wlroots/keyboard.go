@@ -11,7 +11,7 @@ import (
 	"github.com/swaywm/go-wlroots/xkb"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <wlr/types/wlr_input_device.h>
 // #include <wlr/types/wlr_keyboard.h>

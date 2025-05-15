@@ -7,7 +7,7 @@ package wlroots
 
 import "unsafe"
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <stdlib.h>
 // #include <wlr/types/wlr_cursor.h>
@@ -79,7 +79,8 @@ func (c Cursor) MapInputToOutput(input InputDevice, output Output) {
  * struct wlr_output_layout.
  */
 func (c Cursor) MapToRegion(box GeoBox) {
-	C.wlr_cursor_map_to_region(c.p, box.p)
+	cbox := box.toC()
+	C.wlr_cursor_map_to_region(c.p, &cbox)
 }
 
 /**
@@ -87,7 +88,8 @@ func (c Cursor) MapToRegion(box GeoBox) {
  * struct wlr_output_layout.
  */
 func (c Cursor) MapInputToRegion(dev InputDevice, box GeoBox) {
-	C.wlr_cursor_map_input_to_region(c.p, dev.p, box.p)
+	cbox := box.toC()
+	C.wlr_cursor_map_input_to_region(c.p, dev.p, &cbox)
 }
 
 /**
