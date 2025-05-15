@@ -254,7 +254,7 @@ func (s *Server) handleOutputRequestState(output wlroots.Output, state wlroots.O
 	output.CommitState(state)
 }
 
-func (s *Server) handleOuptuDestroy(output wlroots.Output) {
+func (s *Server) handleOutputDestroy(output wlroots.Output) {
 	slog.Debug("handleDestroy", "output", output)
 }
 
@@ -292,7 +292,7 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	output.OnRequestState(s.handleOutputRequestState)
 
 	/* Sets up a listener for the destroy event. */
-	output.OnDestroy(s.handleOuptuDestroy)
+	output.OnDestroy(s.handleOutputDestroy)
 
 	/* Adds this to the output layout. The add_auto function arranges outputs
 	 * from left-to-right in the order they appear. A more sophisticated
