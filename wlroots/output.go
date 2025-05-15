@@ -44,12 +44,6 @@ func (o Output) Scale() float32 {
 	return float32(o.p.scale)
 }
 
-func (o Output) TransformMatrix() Matrix {
-	var matrix Matrix
-	matrix.fromC(&o.p.transform_matrix)
-	return matrix
-}
-
 func (o Output) OnFrame(cb func(Output)) {
 	man.add(unsafe.Pointer(o.p), &o.p.events.frame, func(data unsafe.Pointer) {
 		cb(o)
@@ -125,35 +119,6 @@ func (o Output) Destroy() {
 }
 
 /**
- * Test whether the pending output state would be accepted by the backend. If
- * this function returns true, wlr_output_commit() can only fail due to a
- * runtime error.
- *
- * This function doesn't mutate the pending state.
- */
-func (o Output) Test() bool {
-	return bool(C.wlr_output_test(o.p))
-}
-
-/**
- * Commit the pending output state. If wlr_output_attach_render() has been
- * called, the pending frame will be submitted for display and a `frame` event
- * will be scheduled.
- *
- * On failure, the pending changes are rolled back.
- */
-func (o Output) Commit() bool {
-	return bool(C.wlr_output_commit(o.p))
-}
-
-/**
- * Discard the pending output state.
- */
-func (o Output) Rollback() {
-	C.wlr_output_rollback(o.p)
-}
-
-/**
  * Test whether this output state would be accepted by the backend. If this
  * function returns true, wlr_output_commit_state() will only fail due to a
  * runtime error. This function does not change the current state of the
@@ -196,15 +161,6 @@ func (o Output) Modes() []OutputMode {
 }
 
 /**
- * Sets the output mode. The output needs to be enabled.
- *
- * Mode is double-buffered state, see wlr_output_commit().
- */
-func (o Output) SetMode(mode OutputMode) {
-	C.wlr_output_set_mode(o.p, mode.p)
-}
-
-/**
  * Returns the preferred mode for this output. If the output doesn't support
  * modes, returns NULL.
  */
@@ -214,48 +170,6 @@ func (o Output) PreferredMode() (OutputMode, error) {
 		return OutputMode{}, errors.New("no preferred mode")
 	}
 	return OutputMode{p: mode}, nil
-}
-
-/**
- * Sets a custom mode on the output.
- *
- * When the output advertises fixed modes, custom modes are not guaranteed to
- * work correctly, they may result in visual artifacts. If a suitable fixed mode
- * is available, compositors should prefer it and use wlr_output_set_mode()
- * instead of custom modes.
- *
- * Setting `refresh` to zero lets the backend pick a preferred value. The
- * output needs to be enabled.
- *
- * Custom mode is double-buffered state, see wlr_output_commit().
- */
-func (o Output) SetCustomMode(width int, height int, refresh int) {
-	C.wlr_output_set_custom_mode(o.p, C.int(width), C.int(height), C.int(refresh))
-}
-
-/**
- * Enables or disables adaptive sync (ie. variable refresh rate) on this
- * output. On some backends, this is just a hint and may be ignored.
- * Compositors can inspect `wlr_output.adaptive_sync_status` to query the
- * effective status. Backends that don't support adaptive sync will reject
- * the output commit.
- *
- * When enabled, compositors can submit frames a little bit later than the
- * deadline without dropping a frame.
- *
- * Adaptive sync is double-buffered state, see wlr_output_commit().
- */
-func (o Output) EnableAdaptiveSync(enable bool) {
-	C.wlr_output_enable_adaptive_sync(o.p, C.bool(enable))
-}
-
-/**
- * Sets a scale for the output.
- *
- * Scale is double-buffered state, see wlr_output_commit().
- */
-func (o Output) SetScale(scale float32) {
-	C.wlr_output_set_scale(o.p, C.float(scale))
 }
 
 /**
@@ -274,17 +188,6 @@ func (o Output) SetName(name string) {
 
 func (o Output) SetDescription(desc string) {
 	C.wlr_output_set_description(o.p, C.CString(desc))
-}
-
-/**
- * Enables or disables the output. A disabled output is turned off and doesn't
- * emit `frame` events.
- *
- * Whether an output is enabled is double-buffered state, see
- * wlr_output_commit().
- */
-func (o Output) Enable(enable bool) {
-	C.wlr_output_enable(o.p, C.bool(enable))
 }
 
 func (o Output) Enabled() bool {
@@ -355,10 +258,6 @@ func (os OutputState) SetMode(mode OutputMode) {
 
 func (os OutputState) Finish() {
 	C.wlr_output_state_finish(os.p)
-}
-
-func OutputTransformInvert(transform uint32) uint32 {
-	return uint32(C.wlr_output_transform_invert(C.enum_wl_output_transform(transform)))
 }
 
 type OutputMode struct {
