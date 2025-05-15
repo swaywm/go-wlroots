@@ -276,7 +276,7 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	 * refresh rate), and each monitor supports only a specific set of modes. We
 	 * just pick the monitor's preferred mode, a more sophisticated compositor
 	 * would let the user configure it. */
-	mode, err := output.PrefferedMode()
+	mode, err := output.PreferredMode()
 	if err == nil {
 		oState.SetMode(mode)
 	}

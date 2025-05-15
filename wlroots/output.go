@@ -208,7 +208,7 @@ func (o Output) SetMode(mode OutputMode) {
  * Returns the preferred mode for this output. If the output doesn't support
  * modes, returns NULL.
  */
-func (o Output) PrefferedMode() (OutputMode, error) {
+func (o Output) PreferredMode() (OutputMode, error) {
 	mode := C.wlr_output_preferred_mode(o.p)
 	if mode == nil {
 		return OutputMode{}, errors.New("no preferred mode")
