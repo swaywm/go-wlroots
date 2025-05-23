@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <stdlib.h>
 // #include <time.h>

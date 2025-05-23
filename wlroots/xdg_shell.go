@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <wlr/types/wlr_xdg_shell.h>
 //
@@ -81,6 +81,18 @@ func (s XDGShell) OnNewSurface(cb func(XDGSurface)) {
 			man.delete(unsafe.Pointer(surface.p.surface))
 		})
 		cb(surface)
+	})
+}
+
+func (s XDGShell) OnNewTopLevel(cb func(XDGTopLevel)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.new_toplevel, func(data unsafe.Pointer) {
+		cb(XDGTopLevel{p: (*C.struct_wlr_xdg_toplevel)(data)})
+	})
+}
+
+func (s XDGShell) OnNewPopup(cb func(XDGPopup)) {
+	man.add(unsafe.Pointer(s.p), &s.p.events.new_popup, func(data unsafe.Pointer) {
+		cb(XDGPopup{p: (*C.struct_wlr_xdg_popup)(data)})
 	})
 }
 
@@ -173,6 +185,10 @@ func (x XDGSurface) SetData(tree SceneTree) {
 	slog.Debug("XDGSurface SetData", "x.data:", x.p.data)
 }
 
+func (x XDGSurface) ScheduleConfigure() {
+	C.wlr_xdg_surface_schedule_configure(x.p)
+}
+
 func (x XDGSurface) OnMap(cb func(XDGSurface)) {
 	man.add(unsafe.Pointer(x.p), &x.p.surface.events._map, func(data unsafe.Pointer) {
 		cb(x)
@@ -181,6 +197,12 @@ func (x XDGSurface) OnMap(cb func(XDGSurface)) {
 
 func (x XDGSurface) OnUnmap(cb func(XDGSurface)) {
 	man.add(unsafe.Pointer(x.p), &x.p.surface.events.unmap, func(data unsafe.Pointer) {
+		cb(x)
+	})
+}
+
+func (x XDGSurface) OnCommit(cb func(XDGSurface)) {
+	man.add(unsafe.Pointer(x.p), &x.p.surface.events.commit, func(data unsafe.Pointer) {
 		cb(x)
 	})
 }
@@ -211,6 +233,10 @@ func (x XDGSurface) Geometry() GeoBox {
 	var b GeoBox
 	b.fromC(&cb)
 	return b
+}
+
+func (x XDGSurface) InitialCommit() bool {
+	return bool(x.p.initial_commit)
 }
 
 type XDGTopLevel struct {

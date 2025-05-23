@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <wlr/backend.h>
 // #include <wlr/render/allocator.h>

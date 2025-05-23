@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-// #cgo pkg-config: wlroots wayland-server
+// #cgo pkg-config: wlroots-0.18 wayland-server
 // #cgo CFLAGS: -D_GNU_SOURCE -DWLR_USE_UNSTABLE
 // #include <wlr/backend/wayland.h>
 // #include <wlr/types/wlr_output.h>
@@ -24,9 +24,9 @@ import "C"
  * The `frame` event will be emitted when it is a good time for the compositor
  * to submit a new frame.
  *
- * To render a new frame, compositors should call wlr_output_attach_render(),
- * render and call wlr_output_commit(). No rendering should happen outside a
- * `frame` event handler or before wlr_output_attach_render().
+ * To render a new frame compositors should call wlr_output_begin_render_pass(),
+ * perform rendering on that render pass, and finally call
+ * wlr_output_commit_state().
  */
 type Output struct {
 	p *C.struct_wlr_output
@@ -42,12 +42,6 @@ func (o Output) Name() string {
 
 func (o Output) Scale() float32 {
 	return float32(o.p.scale)
-}
-
-func (o Output) TransformMatrix() Matrix {
-	var matrix Matrix
-	matrix.fromC(&o.p.transform_matrix)
-	return matrix
 }
 
 func (o Output) OnFrame(cb func(Output)) {
@@ -68,8 +62,8 @@ func (o Output) OnDestroy(cb func(Output)) {
 	})
 }
 
-func (o Output) RenderSoftwareCursors() {
-	C.wlr_output_render_software_cursors(o.p, nil)
+func (o Output) RenderSoftwareCursors(pass RenderPass) {
+	C.wlr_output_add_software_cursors_to_render_pass(o.p, pass.p, nil)
 }
 
 /**
@@ -91,24 +85,25 @@ func (o Output) EffectiveResolution() (int, int) {
 }
 
 /**
- * Attach the renderer's buffer to the output. Compositors must call this
- * function before rendering. After they are done rendering, they should call
- * wlr_output_commit() to submit the new frame. The output needs to be
- * enabled.
+ * Begin a render pass on this output.
  *
- * If non-NULL, `buffer_age` is set to the drawing buffer age in number of
- * frames or -1 if unknown. This is useful for damage tracking.
+ * Compositors can call this function to begin rendering. After the render pass
+ * has been submitted, they should call wlr_output_commit_state() to submit the
+ * new frame.
  *
- * If the compositor decides not to render after calling this function, it
- * must call wlr_output_rollback().
+ * On error, NULL is returned. Creating a render pass on a disabled output is
+ * an error.
+ *
+ * The state describes the output changes the rendered frame will be
+ * committed with. A NULL state indicates no change.
  */
-func (o Output) AttachRender() (int, error) {
-	var bufferAge C.int
-	if !C.wlr_output_attach_render(o.p, &bufferAge) {
-		return 0, errors.New("can't make output context current")
+func (o Output) BeginRenderPass(state OutputState) (RenderPass, error) {
+	pass := C.wlr_output_begin_render_pass(o.p, state.p, nil, nil)
+	if pass == nil {
+		return RenderPass{}, errors.New("can't begin render pass")
 	}
 
-	return int(bufferAge), nil
+	return RenderPass{p: pass}, nil
 }
 
 /**
@@ -122,35 +117,6 @@ func (o Output) ScheduleDone() {
 
 func (o Output) Destroy() {
 	C.wlr_output_destroy(o.p)
-}
-
-/**
- * Test whether the pending output state would be accepted by the backend. If
- * this function returns true, wlr_output_commit() can only fail due to a
- * runtime error.
- *
- * This function doesn't mutate the pending state.
- */
-func (o Output) Test() bool {
-	return bool(C.wlr_output_test(o.p))
-}
-
-/**
- * Commit the pending output state. If wlr_output_attach_render() has been
- * called, the pending frame will be submitted for display and a `frame` event
- * will be scheduled.
- *
- * On failure, the pending changes are rolled back.
- */
-func (o Output) Commit() bool {
-	return bool(C.wlr_output_commit(o.p))
-}
-
-/**
- * Discard the pending output state.
- */
-func (o Output) Rollback() {
-	C.wlr_output_rollback(o.p)
 }
 
 /**
@@ -196,66 +162,15 @@ func (o Output) Modes() []OutputMode {
 }
 
 /**
- * Sets the output mode. The output needs to be enabled.
- *
- * Mode is double-buffered state, see wlr_output_commit().
- */
-func (o Output) SetMode(mode OutputMode) {
-	C.wlr_output_set_mode(o.p, mode.p)
-}
-
-/**
  * Returns the preferred mode for this output. If the output doesn't support
  * modes, returns NULL.
  */
-func (o Output) PrefferedMode() (OutputMode, error) {
+func (o Output) PreferredMode() (OutputMode, error) {
 	mode := C.wlr_output_preferred_mode(o.p)
 	if mode == nil {
 		return OutputMode{}, errors.New("no preferred mode")
 	}
 	return OutputMode{p: mode}, nil
-}
-
-/**
- * Sets a custom mode on the output.
- *
- * When the output advertises fixed modes, custom modes are not guaranteed to
- * work correctly, they may result in visual artifacts. If a suitable fixed mode
- * is available, compositors should prefer it and use wlr_output_set_mode()
- * instead of custom modes.
- *
- * Setting `refresh` to zero lets the backend pick a preferred value. The
- * output needs to be enabled.
- *
- * Custom mode is double-buffered state, see wlr_output_commit().
- */
-func (o Output) SetCustomMode(width int, height int, refresh int) {
-	C.wlr_output_set_custom_mode(o.p, C.int(width), C.int(height), C.int(refresh))
-}
-
-/**
- * Enables or disables adaptive sync (ie. variable refresh rate) on this
- * output. On some backends, this is just a hint and may be ignored.
- * Compositors can inspect `wlr_output.adaptive_sync_status` to query the
- * effective status. Backends that don't support adaptive sync will reject
- * the output commit.
- *
- * When enabled, compositors can submit frames a little bit later than the
- * deadline without dropping a frame.
- *
- * Adaptive sync is double-buffered state, see wlr_output_commit().
- */
-func (o Output) EnableAdaptiveSync(enable bool) {
-	C.wlr_output_enable_adaptive_sync(o.p, C.bool(enable))
-}
-
-/**
- * Sets a scale for the output.
- *
- * Scale is double-buffered state, see wlr_output_commit().
- */
-func (o Output) SetScale(scale float32) {
-	C.wlr_output_set_scale(o.p, C.float(scale))
 }
 
 /**
@@ -276,17 +191,6 @@ func (o Output) SetDescription(desc string) {
 	C.wlr_output_set_description(o.p, C.CString(desc))
 }
 
-/**
- * Enables or disables the output. A disabled output is turned off and doesn't
- * emit `frame` events.
- *
- * Whether an output is enabled is double-buffered state, see
- * wlr_output_commit().
- */
-func (o Output) Enable(enable bool) {
-	C.wlr_output_enable(o.p, C.bool(enable))
-}
-
 func (o Output) Enabled() bool {
 	return bool(o.p.enabled)
 }
@@ -295,8 +199,8 @@ func (o Output) Refresh() int {
 	return int(o.p.refresh)
 }
 
-func (o Output) CreateGlobal() {
-	C.wlr_output_create_global(o.p)
+func (o Output) CreateGlobal(d Display) {
+	C.wlr_output_create_global(o.p, d.p)
 }
 
 func (o Output) DestroyGlobal() {
@@ -355,10 +259,6 @@ func (os OutputState) SetMode(mode OutputMode) {
 
 func (os OutputState) Finish() {
 	C.wlr_output_state_finish(os.p)
-}
-
-func OutputTransformInvert(transform uint32) uint32 {
-	return uint32(C.wlr_output_transform_invert(C.enum_wl_output_transform(transform)))
 }
 
 type OutputMode struct {

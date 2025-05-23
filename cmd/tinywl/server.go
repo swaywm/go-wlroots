@@ -254,7 +254,7 @@ func (s *Server) handleOutputRequestState(output wlroots.Output, state wlroots.O
 	output.CommitState(state)
 }
 
-func (s *Server) handleOuptuDestroy(output wlroots.Output) {
+func (s *Server) handleOutputDestroy(output wlroots.Output) {
 	slog.Debug("handleDestroy", "output", output)
 }
 
@@ -276,7 +276,7 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	 * refresh rate), and each monitor supports only a specific set of modes. We
 	 * just pick the monitor's preferred mode, a more sophisticated compositor
 	 * would let the user configure it. */
-	mode, err := output.PrefferedMode()
+	mode, err := output.PreferredMode()
 	if err == nil {
 		oState.SetMode(mode)
 	}
@@ -292,7 +292,7 @@ func (s *Server) handleNewOutput(output wlroots.Output) {
 	output.OnRequestState(s.handleOutputRequestState)
 
 	/* Sets up a listener for the destroy event. */
-	output.OnDestroy(s.handleOuptuDestroy)
+	output.OnDestroy(s.handleOutputDestroy)
 
 	/* Adds this to the output layout. The add_auto function arranges outputs
 	 * from left-to-right in the order they appear. A more sophisticated
@@ -477,7 +477,7 @@ func (s *Server) handleCursorAxis(_ wlroots.InputDevice, time uint32, source wlr
 	 * for example when you move the scroll wheel. */
 
 	/* Notify the client with pointer focus of the axis event. */
-	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source)
+	s.seat.NotifyPointerAxis(time, orientation, delta, deltaDiscrete, source, wlroots.RelativeDirectionIdentical)
 }
 
 func (s *Server) handleCursorFrame() {
@@ -539,29 +539,33 @@ func (s *Server) handleUnMapXDGToplevel(xdgSurface wlroots.XDGSurface) {
 	}
 	s.removeTopLevel(&topLevel)
 }
-func (s *Server) handleNewXDGSurface(xdgSurface wlroots.XDGSurface) {
-	/* This event is raised when wlr_xdg_shell receives a new xdg xdgSurface from a
-	 * client, either a toplevel (application window) or popup. */
+func (s *Server) handleNewXDGPopup(popup wlroots.XDGPopup) {
+	xdgSurface := popup.Base()
+	parent := popup.Parent()
+	if parent.Nil() {
+		panic("xdgSurface popup parent is nil")
+	}
+	xdgSurface.SetData(parent.XDGSurface().SceneTree().NewXDGSurface(xdgSurface))
 
-	if xdgSurface.Role() == wlroots.XDGSurfaceRolePopup {
-
-		parent := xdgSurface.Popup().Parent()
-		if parent.Nil() {
-			panic("xdgSurface popup parent is nil")
+	xdgSurface.OnCommit(func(surface wlroots.XDGSurface) {
+		if surface.InitialCommit() {
+			surface.ScheduleConfigure()
 		}
-		xdgSurface.SetData(parent.XDGSurface().SceneTree().NewXDGSurface(xdgSurface))
-		return
-	}
-	if xdgSurface.Role() != wlroots.XDGSurfaceRoleTopLevel {
-		panic("xdgSurface role is not XDGSurfaceRoleTopLevel")
-	}
+	})
+}
 
+func (s *Server) handleNewXDGTopLevel(toplevel wlroots.XDGTopLevel) {
+	xdgSurface := toplevel.Base()
 	xdgSurface.SetData(s.scene.Tree().NewXDGSurface(xdgSurface.TopLevel().Base()))
 	xdgSurface.OnMap(s.handleMapXDGToplevel)
 	xdgSurface.OnUnmap(s.handleUnMapXDGToplevel)
 	xdgSurface.OnDestroy(func(surface wlroots.XDGSurface) {})
+	xdgSurface.OnCommit(func(surface wlroots.XDGSurface) {
+		if surface.InitialCommit() {
+			surface.ScheduleConfigure()
+		}
+	})
 
-	toplevel := xdgSurface.TopLevel()
 	toplevel.OnRequestMove(func(client wlroots.SeatClient, serial uint32) {
 		s.beginInteractive(&toplevel, CursorModeMove, 0)
 	})
@@ -660,7 +664,7 @@ func NewServer() (s *Server, err error) {
 
 	/* Creates an output layout, which a wlroots utility for working with an
 	 * arrangement of screens in a physical layout. */
-	s.outputLayout = wlroots.NewOutputLayout()
+	s.outputLayout = wlroots.NewOutputLayout(s.display)
 
 	/* Configure a listener to be notified when new outputs are available on the
 	 * backend. */
@@ -681,7 +685,9 @@ func NewServer() (s *Server, err error) {
 	 */
 	s.topLevelList.Init()
 	s.xdgShell = s.display.XDGShellCreate(3)
-	s.xdgShell.OnNewSurface(s.handleNewXDGSurface)
+	s.xdgShell.OnNewSurface(func(xdgSurface wlroots.XDGSurface) {})
+	s.xdgShell.OnNewTopLevel(s.handleNewXDGTopLevel)
+	s.xdgShell.OnNewPopup(s.handleNewXDGPopup)
 
 	/*
 	 * Creates a cursor, which is a wlroots utility for tracking the cursor
